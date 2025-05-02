@@ -1,0 +1,38 @@
+0: R -> E
+1: R -> d [ ]
+2: R -> d ( )
+3: E -> d = E
+4: E -> i
+5: E -> d
+6: E -> d ( R' )
+7: E -> E + E
+8: E -> E * E
+9: E -> ( E )
+10: R' -> ε
+11: R' -> R' R ,
+12: A' -> ε
+13: A' -> A' A ;
+14: B -> B ∧ B
+15: B -> B ∨ B
+16: B -> E r E
+17: B -> E
+18: T -> int
+19: T -> void
+20: A -> T d
+21: A -> T d [ ]
+22: A -> T d ( )
+23: D -> T d
+24: D -> T d [ i ]
+25: D -> T d ( A' ) { D' S' }
+26: S -> d = E
+27: S -> if ( B ) S
+28: S -> if ( B ) S else S
+29: S -> while ( B ) S
+30: S -> return E
+31: S -> { S' }
+32: S -> d ( R' )
+33: D' -> ε
+34: D' -> D' D ;
+35: S' -> S
+36: S' -> S' ; S
+37: P -> D' S'

@@ -1,0 +1,38 @@
+{
+  "0": {
+    "IF": "\\bif\\b",
+    "ELSE": "\\belse\\b",
+    "WHILE": "\\bwhile\\b",
+    "RETURN": "\\breturn\\b",
+    "INPUT": "\\binput\\b",
+    "PRINT": "\\bprint\\b",
+    "VOID": "\\bvoid\\b",
+    "INT": "\\bint\\b",
+    "FLOAT": "\\bfloat\\b"
+  },
+  "1": {
+    "FNUM": "[+-]?(\\d+\\.\\d*|\\d*\\.\\d+)",
+    "NUM": "[+-]?\\d+"
+  },
+  "2": {
+    "ID": "[a-zA-Z_][a-zA-Z0-9_]*"
+  },
+  "3": {
+    "ROP": "<=|==",
+    "ASG": "=",
+    "ADD": "\\+",
+    "MUL": "\\*"
+  },
+  "4": {
+    "ROP": "<",
+    "LPA": "\\(",
+    "RPA": "\\)",
+    "LBK": "\\[",
+    "RBK": "\\]",
+    "LBR": "\\{",
+    "RBR": "\\}",
+    "CMA": ",",
+    "SCO": ";",
+    "NEWLINE": "\\n"
+  }
+}

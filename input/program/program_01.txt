@@ -1,0 +1,20 @@
+void main() {
+  int abc123 = +123456 +123456;
+  float pi = -3.14;
+  float whilE = +.123;
+  float printf = -0.;
+  input(pi);
+  print(abc123 + pi * 2);
+
+  if (abc123 <= +100) {
+    abc123 = abc123 + 1;
+  } else {
+    abc123 = abc123 * 2;
+  }
+
+  while (abc123 < -1000) {
+    abc123 = abc123 + 10;
+  }
+
+  return;
+}

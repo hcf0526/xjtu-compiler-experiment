@@ -1,0 +1,13 @@
+void foo(int y;) {
+  int z;
+  void bar(int x; int soo();) {
+    if (x < 2) bar(x + 3, soo(),) else z = soo(x,)
+  };
+  int raw(int x;) {
+    y = x + 5;
+    return y
+  };
+  bar(y, raw(),)
+};
+foo(6,)
+

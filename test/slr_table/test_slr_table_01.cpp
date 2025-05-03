@@ -17,26 +17,27 @@ int main() {
 
   ItemCluster ic(gs);
   ic.build();
+  ic.to_dot(index_format("output/item_cluster/item_cluster", index, ".dot"));
   // ic.to_json(ic_file);
   // ic.to_txt(ic_file_);
 
-  SLRTable slr_table(ic);
-  slr_table.build();
-  // 输出冲突状态
-  auto id_to_state = slr_table.id_to_state();
-  auto conflict_states = slr_table.conflicts();
-  for (const auto& conflict : conflict_states) {
-    const auto& state_name = id_to_state.at(conflict.state);
-    std::cout << state_name << ": " << std::endl;
-    std::cout << "  " << conflict.symbol << ": ";
-    for (const auto& action : conflict.actions) {
-      std::cout << action << " ";
-    }
-    std::cout << std::endl;
-    const auto& item_cluster_state = ic[state_name];
-    auto item_cluster_state_closure = item_cluster_state.closure;
-    std::cout << item_cluster_state_closure << std::endl;
-  }
+  // SLRTable slr_table(ic);
+  // slr_table.build();
+  // // 输出冲突状态
+  // auto id_to_state = slr_table.id_to_state();
+  // auto conflict_states = slr_table.conflicts();
+  // for (const auto& conflict : conflict_states) {
+  //   const auto& state_name = id_to_state.at(conflict.state);
+  //   std::cout << state_name << ": " << std::endl;
+  //   std::cout << "  " << conflict.symbol << ": ";
+  //   for (const auto& action : conflict.actions) {
+  //     std::cout << action << " ";
+  //   }
+  //   std::cout << std::endl;
+  //   const auto& item_cluster_state = ic[state_name];
+  //   auto item_cluster_state_closure = item_cluster_state.closure;
+  //   std::cout << item_cluster_state_closure << std::endl;
+  // }
   return 0;
 }
 

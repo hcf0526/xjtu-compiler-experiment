@@ -16,6 +16,7 @@ std::ostream& operator<<(std::ostream& os, const Lexical::Token& tok) {
 Lexical::Lexical(const std::string& regex_config_path) {
   std::ifstream in(regex_config_path);
   if (!in) throw std::runtime_error("Failed to open regex config file.");
+
   json j;
   std::string temp;
   in >> j;
@@ -76,7 +77,7 @@ std::vector<Lexical::Token> Lexical::analyze(const std::string& input) {
   return tokens_;
 }
 
-void Lexical::write_tokens(const std::string& output_path) const {
+void Lexical::to_txt(const std::string& output_path) const {
   std::ofstream out(output_path);
   for (const auto& tok : tokens_) {
     if (tok.type == "NEWLINE") {

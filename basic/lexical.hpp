@@ -26,7 +26,7 @@ public:
   std::vector<Token> analyze(const std::string& input);
 
   // 输出所有 Token 到文件（NEWLINE 输出为换行符）
-  void write_tokens(const std::string& output_path) const;
+  void to_txt(const std::string& output_path) const;
 
 private:
   std::vector<Token> tokens_;                                    // 词法分析结果

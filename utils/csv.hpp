@@ -63,7 +63,7 @@ public:
     return data_;
   }
 
-private:
+public:
   std::vector<std::vector<std::string>> data_;
 
   static std::string escape_field(const std::string& field) {

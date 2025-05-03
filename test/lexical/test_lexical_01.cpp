@@ -12,5 +12,5 @@ int main() {
   std::string lexical_file = index_format("output/lexical/lexical", 2, ".txt");
   Lexical lexical(regex_file);
   lexical.analyze(program_file);
-  lexical.write_tokens(lexical_file);
+  lexical.to_txt(lexical_file);
 }

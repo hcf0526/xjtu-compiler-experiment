@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/lexical.json</file>
+        <file>resource/slr_table.csv</file>
+        <file>resource/grammar.txt</file>
+    </qresource>
+</RCC>

@@ -2,6 +2,14 @@
 #include "utils/csv.hpp"
 #include <set>
 
+SLRTable::SLRTable(const std::string &content) {
+  if (content.find(',') != content.npos && content.find("State") != content.npos) {
+    parse_file(content);
+  } else {
+    parse(content);
+  }
+}
+
 SLRTable::SLRTable(const ItemCluster& cluster): item_cluster_(cluster) {
   assign_ids(cluster);
   compute_states(cluster);
@@ -165,6 +173,93 @@ int SLRTable::compute_conflict() {
     }
   }
   return conflict_state_count;
+}
+
+void SLRTable::parse_stream(const std::string &content) {
+  action_table_.clear();
+  goto_table_.clear();
+  conflicts_.clear();
+  Csv csv;
+  GrammarSet grammar_set = item_cluster_.grammar_set();
+  grammar_set.compute_symbols();
+
+  if (!csv.load(content)) {
+    std::cerr << "[SLR] 打开 CSV 文件 " << content << " 失败" << std::endl;
+    return;
+  }
+
+  auto rows = csv.rows();
+  if (rows.empty()) return;
+
+  const auto& header = rows[0];
+  std::vector<std::string> terminals, non_terminals;
+
+  for (size_t i = 1; i < header.size(); ++i) {
+    const std::string& symbol = header[i];
+    if (grammar_set.terminals().count(symbol) || symbol == "#") {
+      terminals.push_back(symbol);
+    } else if (grammar_set.non_terminals().count(symbol)) {
+      non_terminals.push_back(symbol);
+    } else {
+      std::cerr << "[Warning] 无法识别的符号（未出现在文法中）: " << symbol << "\n";
+    }
+  }
+
+  for (size_t r = 1; r < rows.size(); ++r) {
+    const auto& row = rows[r];
+    if (row.empty()) continue;
+    int state = std::stoi(row[0]);
+
+    for (size_t j = 0; j < terminals.size(); ++j) {
+      const std::string& symbol = terminals[j];
+      if (1 + j >= row.size()) continue;
+      const std::string& cell = row[1 + j];
+      if (cell.empty()) continue;
+
+      size_t pos = 0;
+      while (pos < cell.size()) {
+        if (cell.substr(pos, 3) == "acc") {
+          add_action(state, symbol, ACCEPT, -1);
+          pos += 3;
+        } else if (cell[pos] == 's') {
+          int num = std::stoi(cell.substr(pos + 1));
+          add_action(state, symbol, SHIFT, num);
+          while (pos < cell.size() && cell[pos] != '/') ++pos;
+          if (pos < cell.size() && cell[pos] == '/') ++pos;
+        } else if (cell[pos] == 'r') {
+          int num = std::stoi(cell.substr(pos + 1));
+          add_action(state, symbol, REDUCE, num);
+          while (pos < cell.size() && cell[pos] != '/') ++pos;
+          if (pos < cell.size() && cell[pos] == '/') ++pos;
+        } else {
+          ++pos;
+        }
+      }
+    }
+
+    for (size_t j = 0; j < non_terminals.size(); ++j) {
+      const std::string& symbol = non_terminals[j];
+      size_t idx = 1 + terminals.size() + j;
+      if (idx >= row.size()) continue;
+      const std::string& cell = row[idx];
+      if (cell.empty()) continue;
+      int target = std::stoi(cell);
+      add_goto(state, symbol, target);
+    }
+  }
+
+  for (const auto& [state, row] : action_table_) {
+    for (const auto& [symbol, actions] : row) {
+      if (actions.size() > 1) {
+        Conflict conflict;
+        conflict.state = state;
+        conflict.symbol = symbol;
+        conflict.actions = actions;
+        conflict.type = detect_conflict_type(actions);
+        conflicts_.insert(conflict);
+      }
+    }
+  }
 }
 
 void SLRTable::build(const ItemCluster& cluster) {
@@ -389,92 +484,25 @@ void SLRTable::to_csv(const std::string &filename) const {
   csv.save(filename);
 }
 
-void SLRTable::read_csv(const std::string& filename) {
-  action_table_.clear();
-  goto_table_.clear();
-  conflicts_.clear();
-  Csv csv;
-  GrammarSet grammar_set = item_cluster_.grammar_set();
-  grammar_set.compute_symbols();
+void SLRTable::parse(const std::string &text) {
+  parse_stream(text);
+}
 
-  if (!csv.load(filename)) {
-    std::cerr << "Failed to load CSV file: " << filename << std::endl;
+void SLRTable::parse_file(const std::string &file) {
+  std::ifstream in(file);
+  if (!in) {
+    std::cerr << "[SLR] 无法打开文件" << file << std::endl;
     return;
   }
 
-  auto rows = csv.rows();
-  if (rows.empty()) return;
+  std::stringstream buffer;
+  buffer << in.rdbuf();
+  in.close();
+  parse_stream(buffer.str());
+}
 
-  const auto& header = rows[0];
-  std::vector<std::string> terminals, non_terminals;
-
-  for (size_t i = 1; i < header.size(); ++i) {
-    const std::string& symbol = header[i];
-    if (grammar_set.terminals().count(symbol) || symbol == "#") {
-      terminals.push_back(symbol);
-    } else if (grammar_set.non_terminals().count(symbol)) {
-      non_terminals.push_back(symbol);
-    } else {
-      std::cerr << "[Warning] 无法识别的符号（未出现在文法中）: " << symbol << "\n";
-    }
-  }
-
-  for (size_t r = 1; r < rows.size(); ++r) {
-    const auto& row = rows[r];
-    if (row.empty()) continue;
-    int state = std::stoi(row[0]);
-
-    for (size_t j = 0; j < terminals.size(); ++j) {
-      const std::string& symbol = terminals[j];
-      if (1 + j >= row.size()) continue;
-      const std::string& cell = row[1 + j];
-      if (cell.empty()) continue;
-
-      size_t pos = 0;
-      while (pos < cell.size()) {
-        if (cell.substr(pos, 3) == "acc") {
-          add_action(state, symbol, ACCEPT, -1);
-          pos += 3;
-        } else if (cell[pos] == 's') {
-          int num = std::stoi(cell.substr(pos + 1));
-          add_action(state, symbol, SHIFT, num);
-          while (pos < cell.size() && cell[pos] != '/') ++pos;
-          if (pos < cell.size() && cell[pos] == '/') ++pos;
-        } else if (cell[pos] == 'r') {
-          int num = std::stoi(cell.substr(pos + 1));
-          add_action(state, symbol, REDUCE, num);
-          while (pos < cell.size() && cell[pos] != '/') ++pos;
-          if (pos < cell.size() && cell[pos] == '/') ++pos;
-        } else {
-          ++pos;
-        }
-      }
-    }
-
-    for (size_t j = 0; j < non_terminals.size(); ++j) {
-      const std::string& symbol = non_terminals[j];
-      size_t idx = 1 + terminals.size() + j;
-      if (idx >= row.size()) continue;
-      const std::string& cell = row[idx];
-      if (cell.empty()) continue;
-      int target = std::stoi(cell);
-      add_goto(state, symbol, target);
-    }
-  }
-
-  for (const auto& [state, row] : action_table_) {
-    for (const auto& [symbol, actions] : row) {
-      if (actions.size() > 1) {
-        Conflict conflict;
-        conflict.state = state;
-        conflict.symbol = symbol;
-        conflict.actions = actions;
-        conflict.type = detect_conflict_type(actions);
-        conflicts_.insert(conflict);
-      }
-    }
-  }
-
+void SLRTable::read_csv(const std::string& file) {
+  parse_file(file);
 }
 
 int SLRTable::extract_number(const std::string& name) {

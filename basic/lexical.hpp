@@ -20,7 +20,11 @@ public:
   };
 
   // 构造函数：从 JSON 文件加载正则规则
-  explicit Lexical(const std::string& regex_config_path);
+  explicit Lexical(const std::string& content);
+
+  void parse(const std::string& text);
+
+  void parse_file(const std::string& file);
 
   // 输入可以是源码字符串或文件路径，自动判断
   std::vector<Token> analyze(const std::string& input);
@@ -31,6 +35,7 @@ public:
 private:
   std::vector<Token> tokens_;                                    // 词法分析结果
   std::vector<std::pair<std::string, std::regex>> regex_rules_;  // (type, regex)
+  void parse_stream(const std::string& file);
 };
 
 #endif // LEXICAL_HPP

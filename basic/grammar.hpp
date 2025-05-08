@@ -63,10 +63,10 @@ public:
   // 默认构造函数
   GrammarSet();
 
-  // 从文件构造文法
+  // 从文本/文件构造文法
   explicit GrammarSet(const std::string& source);
 
-  // 从文件构造文法(带起始符)
+  // 从文本/文件构造文法(带起始符)
   GrammarSet(const std::string& source, const std::string& start_symbol);
 
   // 添加一条 Grammar

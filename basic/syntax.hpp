@@ -10,7 +10,7 @@
 #include "slr_table.hpp"
 #include "lexical.hpp"
 
-class STAnalyzer {
+class Syntax {
 public:
   struct SymbolTable;
 
@@ -53,10 +53,10 @@ public:
     friend std::ostream &operator<<(std::ostream &os, const SymbolTable &st);
   };
 
-  using TablePtr = std::shared_ptr<struct STAnalyzer::SymbolTable>;
-  using EntryPtr = std::shared_ptr<struct STAnalyzer::Entry>;
-  using ArrayEntryPtr = std::shared_ptr<struct STAnalyzer::ArrayEntry>;
-  using FuncEntryPtr = std::shared_ptr<struct STAnalyzer::FuncEntry>;
+  using TablePtr = std::shared_ptr<struct Syntax::SymbolTable>;
+  using EntryPtr = std::shared_ptr<struct Syntax::Entry>;
+  using ArrayEntryPtr = std::shared_ptr<struct Syntax::ArrayEntry>;
+  using FuncEntryPtr = std::shared_ptr<struct Syntax::FuncEntry>;
 
 
   struct Process {
@@ -77,17 +77,17 @@ public:
   using SymAttrPtr = std::shared_ptr<struct SymbolWithAttribute>;
 
   // 构造函数：SLRTable作为语法分析器
-  explicit STAnalyzer(const SLRTable &slr_table);
+  explicit Syntax(const SLRTable &slr_table);
 
   // 析构函数
-  virtual ~STAnalyzer() = default;
+  virtual ~Syntax() = default;
 
   // 解析输入字符串或文件
   bool parse(const std::vector<Lexical::Token> &tokens);
 
   bool parse_file(const std::string &filename, Lexical lexical);
 
-  friend std::ostream &operator<<(std::ostream &os, const STAnalyzer &analyzer);
+  friend std::ostream &operator<<(std::ostream &os, const Syntax &analyzer);
 
   void processes_to_txt(const std::string &filename) const;
   void symbol_table_to_txt(const std::string &filename) const;
@@ -108,7 +108,7 @@ protected:
   virtual SymAttrPtr reduce(int grammar_id, const std::vector<SymAttrPtr> &symbols) = 0;
 };
 
-class STAnalyzer1 : public STAnalyzer {
+class SyntaxZyl : public Syntax {
 public:
   struct ArrayPttEntry: Entry {
     std::string etype;
@@ -130,7 +130,7 @@ public:
   };
   using SymbolTPtr = std::shared_ptr<struct SymbolT>;
 
-  explicit STAnalyzer1(const SLRTable &slr_table);
+  explicit SyntaxZyl(const SLRTable &slr_table);
 
   std::unordered_map<std::string, TablePtr> symbol_table() const;
 
@@ -141,36 +141,36 @@ private:
 
   // 文法 4
   // D -> T d
-  STAnalyzer::SymAttrPtr reduce_var_declaration(const std::vector<SymAttrPtr>& symbols);
+  Syntax::SymAttrPtr reduce_var_declaration(const std::vector<SymAttrPtr>& symbols);
 
   // 文法 5
   // D -> T d [ i ]
-  STAnalyzer::SymAttrPtr reduce_array_declaration(const std::vector<SymAttrPtr>& symbols);
+  Syntax::SymAttrPtr reduce_array_declaration(const std::vector<SymAttrPtr>& symbols);
 
   // 文法 6
   // D -> T d ( A' ) { D' S' }
-  STAnalyzer::SymAttrPtr reduce_func_declaration(const std::vector<SymAttrPtr>& symbols);
+  Syntax::SymAttrPtr reduce_func_declaration(const std::vector<SymAttrPtr>& symbols);
 
   // 文法 7, 8
   // T -> int
   // T -> void
-  STAnalyzer1::SymbolTPtr reduce_type(const std::vector<SymAttrPtr>& symbols);
+  SyntaxZyl::SymbolTPtr reduce_type(const std::vector<SymAttrPtr>& symbols);
 
   // 文法 9
   // A' -> ε
-  STAnalyzer::SymAttrPtr reduce_params(const std::vector<SymAttrPtr>& symbols);
+  Syntax::SymAttrPtr reduce_params(const std::vector<SymAttrPtr>& symbols);
 
   // 文法 11
   // A -> T d
-  STAnalyzer::SymAttrPtr reduce_params_var(const std::vector<SymAttrPtr>& symbols);
+  Syntax::SymAttrPtr reduce_params_var(const std::vector<SymAttrPtr>& symbols);
 
   // 文法 12
   // A -> T d [ ]
-  STAnalyzer::SymAttrPtr reduce_params_array(const std::vector<SymAttrPtr>& symbols);
+  Syntax::SymAttrPtr reduce_params_array(const std::vector<SymAttrPtr>& symbols);
 
   // 文法 13
   // A -> T d ( )
-  STAnalyzer::SymAttrPtr reduce_params_func(const std::vector<SymAttrPtr>& symbols);
+  Syntax::SymAttrPtr reduce_params_func(const std::vector<SymAttrPtr>& symbols);
 
   bool shift(int state_id, const Lexical::Token &token) override;
 

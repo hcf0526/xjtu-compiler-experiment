@@ -409,6 +409,55 @@ const ItemCluster::State& ItemCluster::operator[](const std::string& state_name)
   return it->second;
 }
 
+void ItemCluster::parse_stream(const std::string& content) {
+  json j;
+  try {
+    j = json::parse(content);
+  } catch (const std::exception& e) {
+    std::cerr << "JSON parsing error: " << e.what() << std::endl;
+    return;
+  }
+
+  states_.clear();
+  state_counter_ = 0;
+
+  for (const auto& [state_name, state_data] : j.items()) {
+    State state;
+
+    if (state_data.contains("Kernel")) {
+      for (const auto& [lhs, rhs_list] : state_data["Kernel"].items()) {
+        for (const auto& rhs : rhs_list) {
+          Grammar g(lhs, rhs.get<std::vector<std::string>>());
+          state.kernel.add(g, 0);
+        }
+      }
+    }
+
+    if (state_data.contains("Closure")) {
+      for (const auto& [lhs, rhs_list] : state_data["Closure"].items()) {
+        for (const auto& rhs : rhs_list) {
+          Grammar g(lhs, rhs.get<std::vector<std::string>>());
+          state.closure.add(g, 0);
+        }
+      }
+    }
+
+    if (state_data.contains("Goto")) {
+      for (const auto& [symbol, target] : state_data["Goto"].items()) {
+        state.goto_table[symbol] = target.get<std::string>();
+      }
+    }
+
+    states_[state_name] = state;
+
+    if (state_name.find("Item Set ") == 0) {
+      int num = std::stoi(state_name.substr(9));
+      if (num >= state_counter_) {
+        state_counter_ = num + 1;
+      }
+    }
+  }
+}
 
 std::string ItemCluster::generate_state_name() {
   return "Item Set " + std::to_string(state_counter_++);
@@ -424,62 +473,21 @@ std::ostream& operator<<(std::ostream& os, const ItemCluster& cluster) {
   return os;
 }
 
-bool ItemCluster::parse_file(const std::string& filename) {
+void ItemCluster::parse(const std::string& content) {
+  parse_stream(content);
+}
+
+void ItemCluster::parse_file(const std::string &filename) {
   std::ifstream file(filename);
   if (!file.is_open()) {
     std::cerr << "Failed to open file: " << filename << std::endl;
-    return false;
+    return;
   }
 
-  json j;
-  file >> j;
+  std::stringstream buffer;
+  buffer << file.rdbuf();
   file.close();
-
-  states_.clear(); // 先清空
-  state_counter_ = 0; // 重置编号
-
-  for (const auto& [state_name, state_data] : j.items()) {
-    State state;
-
-    // 解析Kernel
-    if (state_data.contains("Kernel")) {
-      for (const auto& [lhs, rhs_list] : state_data["Kernel"].items()) {
-        for (const auto& rhs : rhs_list) {
-          Grammar g(lhs, rhs.get<std::vector<std::string>>());
-          state.kernel.add(g, 0); // 加入ItemSet（默认点在第0个符号）
-        }
-      }
-    }
-
-    // 解析Closure
-    if (state_data.contains("Closure")) {
-      for (const auto& [lhs, rhs_list] : state_data["Closure"].items()) {
-        for (const auto& rhs : rhs_list) {
-          Grammar g(lhs, rhs.get<std::vector<std::string>>());
-          state.closure.add(g, 0);
-        }
-      }
-    }
-
-    // 解析Goto表
-    if (state_data.contains("Goto")) {
-      for (const auto& [symbol, target] : state_data["Goto"].items()) {
-        state.goto_table[symbol] = target.get<std::string>();
-      }
-    }
-
-    states_[state_name] = state;
-
-    // 维护 state_counter_（提取出最大编号）
-    if (state_name.find("Item Set ") == 0) {
-      int num = std::stoi(state_name.substr(9));
-      if (num >= state_counter_) {
-        state_counter_ = num + 1;
-      }
-    }
-  }
-
-  return true;
+  parse_stream(buffer.str());
 }
 
 void ItemCluster::build() {

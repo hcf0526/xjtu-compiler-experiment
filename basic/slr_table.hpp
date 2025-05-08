@@ -81,6 +81,9 @@ public:
   // 默认构造
   SLRTable() = default;
 
+  // 从文本/文件构造
+  explicit SLRTable(const std::string& content);
+
   // 从ItemCluster构造初始化
   explicit SLRTable(const ItemCluster& cluster);
 
@@ -108,16 +111,10 @@ public:
   // 添加GOTO表项
   void add_goto(int state, const std::string& non_terminal, int next_state);
 
-  // 获取起始状态编号
+  // 获取起始/接受/最终接受/冲突状态
   int start_state() const;
-
-  // 获取接受状态编号集合
   const std::unordered_set<int>& accept_states() const;
-
-  // 获取最终接受状态
   int final_accept_state() const;
-
-  // 获取冲突列表
   const ConflictSet& conflicts() const;
 
   // 获取ItemSet/Grammar到编号的映射
@@ -138,17 +135,23 @@ public:
   int find_grammar(const Grammar &grammar) const;
 
   // IMPORTANT: 核心
-  // 使用自身保存的ItemCluster构建
+  // 使用类中的ItemCluster构建
   void build();
 
-  // 使用指定的ItemCluster构建（并更新保存的）
+  // 使用指定的ItemCluster构建
   void build(const ItemCluster& cluster);
 
-  // 保存SLR表到CSV文件
+  // 保存CSV文件
   void to_csv(const std::string &filename) const;
 
+  // 从文本加载
+  void parse(const std::string& text);
+
+  // 从文件加载
+  void parse_file(const std::string& file);
+
   // 读取CSV文件
-  void read_csv(const std::string& filename);
+  void read_csv(const std::string& file);
 
 private:
   ItemCluster item_cluster_; // 保存自己的ItemCluster
@@ -177,6 +180,8 @@ private:
 
   // 计算冲突
   int compute_conflict();
+
+  void parse_stream(const std::string& content);
 
   // 辅助函数：从 Item Set 名字中提取编号
   static int extract_number(const std::string& name);

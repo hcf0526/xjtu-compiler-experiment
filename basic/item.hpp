@@ -130,10 +130,12 @@ public:
     std::unordered_map<std::string, std::string> goto_table; // 转移表：符号 -> 目标ItemSet名字
   };
 
-  // 构造函数：仅传文法（不添加任何状态）
+  // 构造函数：传入文法集
+  ItemCluster() = default;
+
   explicit ItemCluster(const GrammarSet& grammar_set);
 
-  // 获取GrammarSet(文法集)
+  // 获取GrammarSet
   const GrammarSet& grammar_set() const;
 
   // 获取所有状态
@@ -148,8 +150,11 @@ public:
   // 支持打印整个ItemCluster（项目集簇）
   friend std::ostream& operator<<(std::ostream& os, const ItemCluster& cluster);
 
-  // 从文件解析出整个ItemCluster
-  bool parse_file(const std::string& filename);
+  // 从文本解析
+  void parse(const std::string &text);
+
+  // 从文件解析
+  void parse_file(const std::string &filename);
 
   // 构建ItemCluster
   void build();
@@ -174,6 +179,8 @@ private:
   GrammarSet grammar_set_; // 当前使用的文法集
   int state_counter_; // 状态编号计数器，用于生成"Item Set N"
 
+  // 从流解析
+  void parse_stream(const std::string &content);
   // 生成新的状态名称（Item Set N）
   std::string generate_state_name();
   // 添加一个新的kernel（自动求closure）

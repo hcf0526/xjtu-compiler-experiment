@@ -10,21 +10,20 @@ class Csv {
 public:
   Csv() = default;
 
+  bool load(const std::string& text) {
+    return load_stream(text);
+  }
+
   // 从文件加载
-  bool load(const std::string& filename) {
+  bool load_file(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
       return false;
     }
-
-    data_.clear();
-    std::string line;
-    while (std::getline(file, line)) {
-      data_.push_back(parse_csv_line(line));
-    }
-
+    std::stringstream buffer;
+    buffer << file.rdbuf();
     file.close();
-    return true;
+    return load_stream(buffer.str());
   }
 
   // 保存到文件
@@ -92,6 +91,16 @@ public:
     } else {
       return escaped;
     }
+  }
+
+  bool load_stream(const std::string& content) {
+    std::istringstream stream(content);
+    data_.clear();
+    std::string line;
+    while (std::getline(stream, line)) {
+      data_.push_back(parse_csv_line(line));
+    }
+    return true;
   }
 
   static std::vector<std::string> parse_csv_line(const std::string& line) {

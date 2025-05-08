@@ -1,7 +1,7 @@
 //
 // Created by WangLele on 25-5-1.
 //
-#include "st_analyzer.hpp"
+#include "syntax.hpp"
 #include "basic/item.hpp"
 #include "basic/grammar.hpp"
 #include "basic/slr_table.hpp"
@@ -32,7 +32,7 @@ int main() {
   slr_table.read_csv(slr_file);
 
   // 符号表分析
-  STAnalyzer1 sta1(slr_table);
+  SyntaxZyl sta1(slr_table);
   sta1.parse(tokens);
   sta1.processes_to_txt(processes_file);
   sta1.symbol_table_to_txt(st_file);

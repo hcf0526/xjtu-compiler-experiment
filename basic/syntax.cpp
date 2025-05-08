@@ -2,9 +2,9 @@
 // Created by WangLele on 25-5-2.
 //
 
-#include "st_analyzer.hpp"
+#include "syntax.hpp"
 
-void STAnalyzer::SymbolTable::add_entry(const std::shared_ptr<Entry> &entry) {
+void Syntax::SymbolTable::add_entry(const std::shared_ptr<Entry> &entry) {
   // 检查是否重名
   for (const auto& e : entries) {
     if (e->name == entry->name) {
@@ -14,13 +14,13 @@ void STAnalyzer::SymbolTable::add_entry(const std::shared_ptr<Entry> &entry) {
   entries.push_back(entry);
 }
 
-std::ostream &operator<<(std::ostream &os, const STAnalyzer::Entry &entry) {
+std::ostream &operator<<(std::ostream &os, const Syntax::Entry &entry) {
   os << "(name: " << entry.name << ", type: " << entry.type
      << ", offset: " << entry.offset << ")";
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const STAnalyzer::ArrayEntry &entry) {
+std::ostream &operator<<(std::ostream &os, const Syntax::ArrayEntry &entry) {
   os << "(name: " << entry.name << ", type: " << entry.type
      << ", etype: " << entry.etype << ", base: " << entry.base
      << ", dims: " << entry.dims << ", dim: [";
@@ -35,29 +35,29 @@ std::ostream &operator<<(std::ostream &os, const STAnalyzer::ArrayEntry &entry) 
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const STAnalyzer::FuncEntry &entry) {
+std::ostream &operator<<(std::ostream &os, const Syntax::FuncEntry &entry) {
   os << "(name: " << entry.name << ", type: " << entry.type
      << ", offset: " << entry.offset << ", rtype: " << entry.rtype
-     << ", mytab: " << STAnalyzer::get_name(*entry.mytab) << ")";
+     << ", mytab: " << Syntax::get_name(*entry.mytab) << ")";
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const STAnalyzer1::ArrayPttEntry &entry) {
+std::ostream &operator<<(std::ostream &os, const SyntaxZyl::ArrayPttEntry &entry) {
   os << "(name: " << entry.name << ", type: " << entry.type
      << ", etype: " << entry.etype << ", base: " << entry.base
      << ")";
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const STAnalyzer1::FuncPttEntry &entry) {
+std::ostream &operator<<(std::ostream &os, const SyntaxZyl::FuncPttEntry &entry) {
   os << "(name: " << entry.name << ", type: " << entry.type
      << ", offset: " << entry.offset << ", rtype: " << entry.rtype
      << ")";
   return os;
 }
 
-std::ostream & operator<<(std::ostream &os, const STAnalyzer::SymbolTable &st) {
-  os << (STAnalyzer::get_name(st)) << ": {" << std::endl;
+std::ostream & operator<<(std::ostream &os, const Syntax::SymbolTable &st) {
+  os << (Syntax::get_name(st)) << ": {" << std::endl;
   os << "  width: " << st.width
      << "  argc: " << st.argc
      << "  rtype: " << st.rtype
@@ -71,13 +71,13 @@ std::ostream & operator<<(std::ostream &os, const STAnalyzer::SymbolTable &st) {
   os << "  entries: {" << std::endl;
   for (const auto& entry : st.entries) {
     if (entry->type == "array") {
-      os << "    " << *std::dynamic_pointer_cast<STAnalyzer::ArrayEntry>(entry) << std::endl;
+      os << "    " << *std::dynamic_pointer_cast<Syntax::ArrayEntry>(entry) << std::endl;
     } else if (entry->type == "func") {
-      os << "    " << *std::dynamic_pointer_cast<STAnalyzer::FuncEntry>(entry) << std::endl;
+      os << "    " << *std::dynamic_pointer_cast<Syntax::FuncEntry>(entry) << std::endl;
     } else if (entry->type == "arrayptt") {
-      os << "    " << *std::dynamic_pointer_cast<STAnalyzer1::ArrayPttEntry>(entry) << std::endl;
+      os << "    " << *std::dynamic_pointer_cast<SyntaxZyl::ArrayPttEntry>(entry) << std::endl;
     } else if (entry->type == "funcptt") {
-      os << "    " << *std::dynamic_pointer_cast<STAnalyzer1::FuncPttEntry>(entry) << std::endl;
+      os << "    " << *std::dynamic_pointer_cast<SyntaxZyl::FuncPttEntry>(entry) << std::endl;
     } else {
       os << "    " << *entry << std::endl;
     }
@@ -87,26 +87,26 @@ std::ostream & operator<<(std::ostream &os, const STAnalyzer::SymbolTable &st) {
   return os;
 }
 
-std::ostream & operator<<(std::ostream &os, const STAnalyzer::Process &p) {
+std::ostream & operator<<(std::ostream &os, const Syntax::Process &p) {
   os << "(" << p.state << ", " << p.token << ", " << p.action << ")";
   return os;
 }
 
-STAnalyzer::STAnalyzer(const SLRTable& slr_table)
+Syntax::Syntax(const SLRTable& slr_table)
   : slr_table_(slr_table) {
 
 }
 
-bool STAnalyzer::parse(const std::vector<Lexical::Token>& tokens) {
+bool Syntax::parse(const std::vector<Lexical::Token>& tokens) {
   return analyze_tokens(tokens);
 }
 
-bool STAnalyzer::parse_file(const std::string& filename, Lexical lexical) {
+bool Syntax::parse_file(const std::string& filename, Lexical lexical) {
   const std::vector<Lexical::Token> tokens = lexical.analyze(filename);
   return analyze_tokens(tokens);
 }
 
-void STAnalyzer::processes_to_txt(const std::string &filename) const {
+void Syntax::processes_to_txt(const std::string &filename) const {
   std::ofstream file(filename);
   if (!file.is_open()) {
     std::cerr << "[错误] processes_to_txt(): 无法打开文件 " << filename << std::endl;
@@ -115,7 +115,7 @@ void STAnalyzer::processes_to_txt(const std::string &filename) const {
   file << *this;
 }
 
-void STAnalyzer::symbol_table_to_txt(const std::string &filename) const {
+void Syntax::symbol_table_to_txt(const std::string &filename) const {
   std::ofstream file(filename);
   if (!file.is_open()) {
     std::cerr << "[错误] symbol_table_to_txt(): 无法打开文件 " << filename << std::endl;
@@ -126,7 +126,7 @@ void STAnalyzer::symbol_table_to_txt(const std::string &filename) const {
   }
 }
 
-bool STAnalyzer::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
+bool Syntax::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
   processes_.clear();
 
   // 添加输入结束符 #
@@ -245,29 +245,29 @@ bool STAnalyzer::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
   }
 }
 
-std::ostream &operator<<(std::ostream &os, const STAnalyzer::SymbolWithAttribute &swa) {
+std::ostream &operator<<(std::ostream &os, const Syntax::SymbolWithAttribute &swa) {
   os << "(" << swa.name << ", " << swa.value << ")";
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const STAnalyzer& analyzer) {
+std::ostream& operator<<(std::ostream& os, const Syntax& analyzer) {
   for (const auto& process : analyzer.processes_) {
     os << process << "\n";
   }
   return os;
 }
 
-STAnalyzer1::STAnalyzer1(const SLRTable& slr_table) : STAnalyzer(slr_table) {
+SyntaxZyl::SyntaxZyl(const SLRTable& slr_table) : Syntax(slr_table) {
   std::shared_ptr<SymbolTable> system_table = std::make_shared<SymbolTable>("system_table");
   push_symbol_table(system_table);
   map_symbol_table_["system_table"] = system_table;
 }
 
-std::unordered_map<std::string, STAnalyzer::TablePtr> STAnalyzer1::symbol_table() const {
+std::unordered_map<std::string, Syntax::TablePtr> SyntaxZyl::symbol_table() const {
   return map_symbol_table_;
 }
 
-int STAnalyzer1::size_of(const std::string &type) {
+int SyntaxZyl::size_of(const std::string &type) {
   if (type == "int") return 4;
   if (type == "void") return 0;
   if (type == "array" || type == "arrayptt") return 4;
@@ -278,11 +278,11 @@ int STAnalyzer1::size_of(const std::string &type) {
 // 根据不同的属性方程, 由程序员实现函数的定义, 父类提供接口.
 // 否则, 对属性方程过于抽象, 不容易实现.
 
-bool STAnalyzer1::shift(int state_id, const Lexical::Token &token) {
+bool SyntaxZyl::shift(int state_id, const Lexical::Token &token) {
   return true;
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce_var_declaration(const std::vector<SymAttrPtr>& symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce_var_declaration(const std::vector<SymAttrPtr>& symbols) {
   // 文法 4
   // D -> T d
   //      0 1
@@ -297,7 +297,7 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce_var_declaration(const std::vector<Sym
   return std::make_shared<SymbolWithAttribute>("D", "D");
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce_array_declaration(const std::vector<SymAttrPtr> &symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce_array_declaration(const std::vector<SymAttrPtr> &symbols) {
   // 文法 5
   // D -> T d [ i ]
   //      0 1 2 3 4
@@ -316,7 +316,7 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce_array_declaration(const std::vector<S
   return std::make_shared<SymbolWithAttribute>("D", "D");
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce_func_declaration(const std::vector<SymAttrPtr>& symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce_func_declaration(const std::vector<SymAttrPtr>& symbols) {
   // 文法 6
   // D -> T d ( A' ) { D' S' }
   //      0 1 2 3  4 5 6  7  8
@@ -340,7 +340,7 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce_func_declaration(const std::vector<Sy
   return std::make_shared<SymbolWithAttribute>("D", "D");
 }
 
-STAnalyzer1::SymbolTPtr STAnalyzer1::reduce_type(const std::vector<SymAttrPtr> &symbols) {
+SyntaxZyl::SymbolTPtr SyntaxZyl::reduce_type(const std::vector<SymAttrPtr> &symbols) {
   // 文法 7, 8
   // T -> int
   // T -> void
@@ -348,7 +348,7 @@ STAnalyzer1::SymbolTPtr STAnalyzer1::reduce_type(const std::vector<SymAttrPtr> &
   return std::make_shared<SymbolT>(symbol_t);
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params(const std::vector<SymAttrPtr>& symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce_params(const std::vector<SymAttrPtr>& symbols) {
   // 文法 9
   // A' -> ε
   //       0
@@ -357,7 +357,7 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params(const std::vector<SymAttrPtr>&
   return std::make_shared<SymbolWithAttribute>("A'", "A'");
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params_var(const std::vector<SymAttrPtr> &symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce_params_var(const std::vector<SymAttrPtr> &symbols) {
   // 文法 11
   // A -> T d
   //      0 1
@@ -374,7 +374,7 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params_var(const std::vector<SymAttrP
   return std::make_shared<SymbolWithAttribute>("A", "A");
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params_array(const std::vector<SymAttrPtr> &symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce_params_array(const std::vector<SymAttrPtr> &symbols) {
   // 文法 12
   // A -> T d [ ]
   //      0 1 2 3
@@ -392,7 +392,7 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params_array(const std::vector<SymAtt
   return std::make_shared<SymbolWithAttribute>("A", "A");
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params_func(const std::vector<SymAttrPtr> &symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce_params_func(const std::vector<SymAttrPtr> &symbols) {
   // 文法 13
   // A -> T d ( )
   //      0 1 2 3
@@ -410,7 +410,7 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce_params_func(const std::vector<SymAttr
   return std::make_shared<SymbolWithAttribute>("A", "A");
 }
 
-STAnalyzer::SymAttrPtr STAnalyzer1::reduce(int grammar_id, const std::vector<SymAttrPtr> &symbols) {
+Syntax::SymAttrPtr SyntaxZyl::reduce(int grammar_id, const std::vector<SymAttrPtr> &symbols) {
   Grammar grammar = slr_table_.find_grammar(grammar_id);
   if (grammar == Grammar("D -> T d")) {
     return reduce_var_declaration(symbols);
@@ -440,18 +440,18 @@ STAnalyzer::SymAttrPtr STAnalyzer1::reduce(int grammar_id, const std::vector<Sym
   return std::make_shared<SymbolWithAttribute>(grammar.lhs(), grammar.lhs());
 }
 
-void STAnalyzer1::push_symbol_table(const std::shared_ptr<SymbolTable>& symbol_table) {
+void SyntaxZyl::push_symbol_table(const std::shared_ptr<SymbolTable>& symbol_table) {
   stack_symbol_table_.push(symbol_table);
 }
 
-std::shared_ptr<STAnalyzer::SymbolTable> STAnalyzer1::pop_symbol_table() {
+std::shared_ptr<Syntax::SymbolTable> SyntaxZyl::pop_symbol_table() {
   if (stack_symbol_table_.empty()) return nullptr;
   auto top = stack_symbol_table_.top();
   stack_symbol_table_.pop();
   return top;
 }
 
-std::string STAnalyzer::get_name(const SymbolTable& symbol_table) {
+std::string Syntax::get_name(const SymbolTable& symbol_table) {
   std::string name = symbol_table.name;
   TablePtr outer = symbol_table.outer;
   while (outer) {

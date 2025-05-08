@@ -13,29 +13,29 @@ std::ostream& operator<<(std::ostream& os, const Lexical::Token& tok) {
   return os;
 }
 
-Lexical::Lexical(const std::string& regex_config_path) {
-  std::ifstream in(regex_config_path);
-  if (!in) throw std::runtime_error("Failed to open regex config file.");
-
-  json j;
-  std::string temp;
-  in >> j;
-
-  std::vector<std::pair<int, std::vector<std::pair<std::string, std::string>>>> sorted;
-  for (auto& [priority_str, rules] : j.items()) {
-    int pri = std::stoi(priority_str);
-    std::vector<std::pair<std::string, std::string>> group;
-    for (auto& [type, regex_str] : rules.items()) {
-      group.emplace_back(type, regex_str);
-    }
-    sorted.emplace_back(pri, group);
+Lexical::Lexical(const std::string& content) {
+  if (content.find('{') != std::string::npos) {
+    parse(content);
+  } else {
+    parse_file(content);
   }
-  std::sort(sorted.begin(), sorted.end());
-  for (auto& [_, group] : sorted) {
-    for (auto& [type, pattern] : group) {
-      regex_rules_.emplace_back(type, std::regex("^" + pattern));
-    }
+}
+
+void Lexical::parse(const std::string &text) {
+  parse_stream(text);
+}
+
+void Lexical::parse_file(const std::string &file) {
+  std::ifstream in(file);
+  if (!in) {
+    std::cerr << "[Lexical] 无法打开文件" << file << std::endl;
+    return;
   }
+
+  std::stringstream buffer;
+  buffer << in.rdbuf();
+  in.close();
+  parse_stream(buffer.str());
 }
 
 std::vector<Lexical::Token> Lexical::analyze(const std::string& input) {
@@ -84,6 +84,42 @@ void Lexical::to_txt(const std::string& output_path) const {
       out << "\n";
     } else {
       out << tok << " ";
+    }
+  }
+}
+
+void Lexical::parse_stream(const std::string &file) {
+  json j;
+  try {
+    j = json::parse(file);
+  } catch (const std::exception& e) {
+    std::cerr << "[Lexical] json 解析错误: " << e.what() << std::endl;
+    return;
+  }
+
+  regex_rules_.clear();
+  std::vector<std::pair<int, std::vector<std::pair<std::string, std::string>>>> sorted;
+
+  for (auto& [priority_str, rules] : j.items()) {
+    int pri = std::stoi(priority_str);
+    std::vector<std::pair<std::string, std::string>> group;
+    for (auto& [type, regex_str] : rules.items()) {
+      group.emplace_back(type, regex_str);
+    }
+    sorted.emplace_back(pri, group);
+  }
+
+  std::sort(sorted.begin(), sorted.end());
+
+  for (auto& [_, group] : sorted) {
+    for (auto& [type, pattern] : group) {
+      try {
+        regex_rules_.emplace_back(type, std::regex("^" + pattern));
+      } catch (const std::regex_error& e) {
+        std::cerr << "[Lexical] 错误的正则表达式. type: " << type << ", pattern: " << pattern
+                  << std::endl << e.what() << std::endl;
+        return;
+      }
     }
   }
 }

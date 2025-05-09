@@ -8,11 +8,16 @@
 #include <string>
 
 using Text = const std::string&;
+using QText = const QString&;
 
-inline QFile default_lexical(":/resource/lexical.json");
-inline QFile default_grammar(":/resource/grammar.txt");
-inline QFile default_slr_table(":/resource/slr_table.csv");
+inline QString filename_default_grammar = ":/resource/grammar.txt";
 
-bool parse(Text program, Text result);
+inline QFile file_default_lexical(":/resource/lexical.json");
+inline QFile file_default_grammar(":/resource/grammar.txt");
+inline QFile file_default_slr_table(":/resource/slr_table.csv");
+
+bool parse_syntax(Text file, Text result);
+
+bool parse_slr_table(QText filename_grammar, QText result);
 
 #endif //COMPILER_SIGNAL_HPP

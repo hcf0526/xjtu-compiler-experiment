@@ -1,6 +1,12 @@
-void foo() {
-  int x;
-  x = 1
+void foo(int x; int y;) {
+  int z;
+  z = 1;
+  if (z < 2 ∧ x < 0) {
+    z = 2
+  } else {
+    z = 3
+  };
+  return z
 };
-foo()
+foo(1, 2,)
 

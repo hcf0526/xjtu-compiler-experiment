@@ -26,6 +26,22 @@ namespace strtool {
     return tokens;
   }
 
+  inline std::string to_upper(const std::string& s) {
+    std::string result;
+    for (char c : s) {
+      result += std::toupper(c);
+    }
+    return result;
+  }
+
+  inline std::string to_lower(const std::string& s) {
+    std::string result;
+    for (char c : s) {
+      result += std::tolower(c);
+    }
+    return result;
+  }
+
 } // namespace strtool
 
 #endif // STRTOOL_HPP

@@ -1,16 +1,24 @@
 void foo(int y;) {
   int z;
-  int arr[5];
-  void bar(int x; int z[]; int soo();) {
-    int var;
-    if (x < 2) bar(x + 3, soo(),) else z = soo(x,)
+  int arr[99];
+  void bar(int x; int a[]; int soo();) {
+    int var1;
+    int var2;
+    var1 = 1;
+    var2 = (var1 = 1);
+    if (x < 50) bar(x + 1, a[], soo(),) else soo(x, var1 + 1,);
+    var2 = var2 + 1
   };
   int raw(int x;) {
     int xyz;
-    y = x + 5;
-    return y
+    xyz = 0;
+    while (xyz < 10 ∧ xyz <= 20) {
+        x = x + 5;
+        xyz = xyz + 1
+    };
+    return x
   };
-  bar(y, raw(),)
+  bar(y, arr[], raw(),)
 };
-foo(6,)
+foo(2 * 100,)
 

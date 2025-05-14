@@ -64,6 +64,7 @@ public:
 
     explicit SymbolTable(std::string name = "") : name(std::move(name)) {} // 构造函数
     void add_entry(const std::shared_ptr<Entry> &entry); // 添加登记项
+    std::shared_ptr<Entry> lookup_entry(const std::string &name); // 查找登记项
     friend std::ostream &operator<<(std::ostream &os, const SymbolTable &symbol_table);
   };
 
@@ -183,10 +184,11 @@ public:
   using SymbolPPtr = std::shared_ptr<struct SymbolP>;
 
   struct SymbolR: SymbolWithAttribute {
-    std::string code;
     std::string place;
-    SymbolR(std::string name, std::string value, std::string code, std::string place)
-        : SymbolWithAttribute(std::move(name), std::move(value)), code(std::move(code)), place(std::move(place)) {}
+    std::string code;
+
+    SymbolR(std::string name, std::string value, std::string place, std::string code)
+        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
   };
   using SymbolRPtr = std::shared_ptr<struct SymbolR>;
 
@@ -267,39 +269,39 @@ private:
 
   // 文法 14
   // S' -> S
-  SyntaxZyl::SymbolPtr reduce_senteces(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentences(const std::vector<SymbolPtr> &symbols);
 
   // 文法 15
   // S' -> S' ; S
-  SyntaxZyl::SymbolPtr reduce_senteces_list(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentences_list(const std::vector<SymbolPtr> &symbols);
 
   // 文法 16
   // S -> d = E
-  SyntaxZyl::SymbolPtr reduce_sentece_assign(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentence_assign(const std::vector<SymbolPtr> &symbols);
 
   // 文法 17
   // S -> if ( B ) S
-  SyntaxZyl::SymbolPtr reduce_sentece_if(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentence_if(const std::vector<SymbolPtr> &symbols);
 
   // 文法 18
   // S -> if ( B ) S else S
-  SyntaxZyl::SymbolPtr reduce_sentece_if_else(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentence_if_else(const std::vector<SymbolPtr> &symbols);
 
   // 文法 19
   // S -> while ( B ) S
-  SyntaxZyl::SymbolPtr reduce_sentece_while(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentence_while(const std::vector<SymbolPtr> &symbols);
 
   // 文法 20
   // S -> return E
-  SyntaxZyl::SymbolPtr reduce_sentece_return(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentence_return(const std::vector<SymbolPtr> &symbols);
 
   // 文法 21
   // S -> { S' }
-  SyntaxZyl::SymbolPtr reduce_sentece_block(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentence_block(const std::vector<SymbolPtr> &symbols);
 
   // 文法 22
   // S -> d ( R' )
-  SyntaxZyl::SymbolPtr reduce_sentece_call(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymbolPtr reduce_sentence_call(const std::vector<SymbolPtr> &symbols);
 
   // 文法 23
   // B -> B ∧ B
@@ -370,9 +372,15 @@ private:
 
   std::string new_label();
 
+  std::string gen_code(const std::string& instruction, const std::string& label);
+
+  std::string gen_code(const std::string& instruction, const std::vector<std::string> &labels);
+
   std::string new_labels(const std::vector<std::string> &labels);
 
   std::string new_params(const std::vector<std::string> &parlist);
+
+  std::vector<std::string> merge_list(const std::vector<std::string> &list1, const std::vector<std::string> &list2);
 
   std::string merge_code(const std::vector<std::string> &code_list);
 

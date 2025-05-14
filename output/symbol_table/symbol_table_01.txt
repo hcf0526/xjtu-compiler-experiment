@@ -1,40 +1,23 @@
 foo@system_table: {
-  width: 44  argc: 1  rtype: void  level: 1
-  arglist: y 
-  entries: {
-    (name: y, type: int, offset: 4)
-    (name: z, type: int, offset: 8)
-    (name: arr, type: array, etype: int, base: 28, dims: 1, dim: [5])
-    (name: bar, type: func, offset: 36, rtype: void, mytab: bar@foo)
-    (name: raw, type: func, offset: 44, rtype: int, mytab: raw@foo)
-  }
-}
-
-raw@foo: {
-  width: 8  argc: 1  rtype: int  level: 1
-  arglist: x 
+  width: 4  argc: 0  rtype: void  level: 1
+  arglist:  ()
   entries: {
     (name: x, type: int, offset: 4)
-    (name: xyz, type: int, offset: 8)
   }
-}
-
-bar@foo: {
-  width: 16  argc: 3  rtype: void  level: 1
-  arglist: x z soo 
-  entries: {
-    (name: x, type: int, offset: 4)
-    (name: z, type: arrayptt, etype: int, base: 8)
-    (name: soo, type: funcptt, offset: 12, rtype: int)
-    (name: var, type: int, offset: 16)
-  }
+  code: [
+t0=1;
+x=t0; 
+  ]
 }
 
 system_table: {
   width: 8  argc: 0  rtype:   level: 0
-  arglist: 
+  arglist:  ()
   entries: {
-    (name: foo, type: func, offset: 8, rtype: void, mytab: foo@system_table)
+    (name: foo, type: func, offset: 8, mytab: foo@system_table)
   }
+  code: [
+t1=CALL foo, 0; 
+  ]
 }
 

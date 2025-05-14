@@ -9,18 +9,15 @@
 int main() {
   constexpr int index = 1;
 
-  std::string regex_file = index_format("input/lexical/lexical", 1, ".json");
+  std::string regex_file = index_format("input/lexical/lexical", index, ".json");
   std::string gm_file = index_format("input/grammar/grammar", index, ".txt");
   std::string slr_file = index_format("input/slr_table/slr_table", index, ".csv");
-  std::string tokens_file = index_format("output/lexical/lexical", 2, ".txt");
-  std::string program_file = index_format("input/program/program", 2, ".txt");
-  std::string processes_file = index_format("output/symbol_table/processes", index, ".txt");
-  std::string st_file = index_format("output/symbol_table/symbol_table", index, ".txt");
+  std::string sta_file = index_format("output/symbol_table/symbol_table", index, ".txt");
 
+  std::string program_file = index_format("input/program/program", 2, ".txt");
   // 词法分析
   Lexical lexical(regex_file);
   auto tokens = lexical.analyze(program_file);
-  // lexical.to_txt(tokens_file);
 
   // 文法集
   GrammarSet gs(gm_file, "P");
@@ -34,8 +31,8 @@ int main() {
   // 符号表分析
   SyntaxZyl sta1(slr_table);
   sta1.parse(tokens);
-  sta1.processes_to_txt(processes_file);
-  sta1.symbol_table_to_txt(st_file);
+  sta1.processes_to_txt("output/symbol_table/processes.txt");
+  sta1.symbol_table_to_txt(sta_file);
 
   return 0;
 }

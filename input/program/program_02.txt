@@ -1,16 +1,6 @@
-void foo(int y;) {
-  int z;
-  int arr[5];
-  void bar(int x; int z[]; int soo();) {
-    int var;
-    if (x < 2) bar(x + 3, soo(),) else z = soo(x,)
-  };
-  int raw(int x;) {
-    int xyz;
-    y = x + 5;
-    return y
-  };
-  bar(y, raw(),)
+void foo() {
+  int x;
+  x = 1
 };
-foo(6,)
+foo()
 

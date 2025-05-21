@@ -7,6 +7,8 @@
 #include <string>
 #include <iostream>
 
+const std::string SLR_TABLE_NORMAL = "input/slr_table/slr_table_normal.csv";
+const std::string SLR_TABLE_EXTEND = "input/slr_table/slr_table_extend.csv";
 
 // SLR分析表
 class SLRTable {
@@ -111,6 +113,15 @@ public:
   // 添加GOTO表项
   void add_goto(int state, const std::string& non_terminal, int next_state);
 
+  // 设置ACTION项
+  void set_action(int state, const std::string& symbol, ActionType type, int target);
+  void set_action(int state, const std::string& symbol, const Action& action);
+  void set_action(int state, const std::string& symbol, const ActionSet& actions);
+
+  // 设置GOTO项
+  void set_goto(int state, const std::string& non_terminal, int next_state);
+  void set_goto(int state, const std::string& non_terminal, const GotoSet& next_states);
+
   // 获取起始/接受/最终接受/冲突状态
   int start_state() const;
   const std::unordered_set<int>& accept_states() const;
@@ -143,6 +154,18 @@ public:
 
   // 保存CSV文件
   void to_csv(const std::string &filename) const;
+
+  // 将冲突信息保存到TXT文件
+  void conflict_to_txt(const std::string &filename) const;
+
+  // 将冲突信息保存到CSV文件
+  void conflict_to_csv(const std::string &filename) const;
+
+  // 消除冲突
+  void eliminate_conflict(const std::string &filename);
+
+  // 将id_to_grammar映射保存到TXT文件
+  void id_to_grammar_to_txt(const std::string &filename) const;
 
   // 从文本加载
   void parse(const std::string& text);
@@ -182,9 +205,6 @@ private:
   int compute_conflict();
 
   void parse_stream(const std::string& content);
-
-  // 辅助函数：从 Item Set 名字中提取编号
-  static int extract_number(const std::string& name);
 
   // 辅助函数：检测冲突类型
   static ConflictType detect_conflict_type(const SLRTable::ActionSet& actions);

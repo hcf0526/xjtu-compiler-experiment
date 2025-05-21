@@ -1,0 +1,145 @@
+﻿Item Set,冲突符号,冲突动作,状态集,修正
+Item Set 60,*,s44 r3 ,"E -> d = E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s44
+Item Set 60,/,s42 r3 ,"E -> d = E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s42
+Item Set 62,-,s43 r12 ,"E -> E / E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r12
+Item Set 62,+,s45 r12 ,"E -> E / E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r12
+Item Set 60,+,s45 r3 ,"E -> d = E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s45
+Item Set 69,+,s45 r9 ,"E -> E + E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r9
+Item Set 72,*,s44 r10 ,"E -> E - E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s44
+Item Set 62,*,s44 r12 ,"E -> E / E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r12
+Item Set 84,∧,s65 r18 ,"B -> B ∧ B •
+B -> B • ∧ B
+B -> B • ∨ B
+",r18
+Item Set 62,/,s42 r12 ,"E -> E / E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r12
+Item Set 84,∨,s64 r18 ,"B -> B ∧ B •
+B -> B • ∧ B
+B -> B • ∨ B
+",r18
+Item Set 69,-,s43 r9 ,"E -> E + E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r9
+Item Set 73,*,s44 r11 ,"E -> E * E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r11
+Item Set 60,-,s43 r3 ,"E -> d = E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s43
+Item Set 82,),s97 r14 ,"R' -> •
+R' -> • R' R ,
+E -> d ( • R' )
+R -> d ( • )
+",s97
+Item Set 78,∧,s65 r19 ,"B -> B ∨ B •
+B -> B • ∧ B
+B -> B • ∨ B
+",s65
+Item Set 81,else,s94 r33 ,"S -> if ( B ) S •
+S -> if ( B ) S • else S
+",s94
+Item Set 78,∨,s64 r19 ,"B -> B ∨ B •
+B -> B • ∧ B
+B -> B • ∨ B
+",r19
+Item Set 73,-,s43 r11 ,"E -> E * E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r11
+Item Set 69,*,s44 r9 ,"E -> E + E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s44
+Item Set 73,+,s45 r11 ,"E -> E * E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r11
+Item Set 73,/,s42 r11 ,"E -> E * E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r11
+Item Set 72,+,s45 r10 ,"E -> E - E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r10
+Item Set 69,/,s42 r9 ,"E -> E + E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s42
+Item Set 72,-,s43 r10 ,"E -> E - E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",r10
+Item Set 72,/,s42 r10 ,"E -> E - E •
+E -> E • + E
+E -> E • - E
+E -> E • * E
+E -> E • / E
+",s42

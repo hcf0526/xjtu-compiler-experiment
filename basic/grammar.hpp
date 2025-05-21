@@ -13,9 +13,13 @@
 
 using json = nlohmann::json;
 
+const std::string GRAMMAR_NORMAL = "input/grammar/grammar_normal.txt";
+const std::string GRAMMAR_EXTEND = "input/grammar/grammar_extend.txt";
+
 // 单条文法（产生式）
 class Grammar {
 public:
+
   // 默认构造函数
   Grammar();
 

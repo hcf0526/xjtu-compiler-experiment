@@ -33,6 +33,9 @@ public:
   // 转为 JSON 表示
   json to_json() const;
 
+  // 转为字符串表示
+  std::string to_string() const;
+
   // 判断两个 Item 是否相同
   bool operator==(const Item &other) const;
 
@@ -109,6 +112,9 @@ public:
 
   // 转为 JSON 并保存文件
   json to_json(const std::string &filename) const;
+
+  // 转为字符串
+  std::string to_string() const;
 
   // 支持打印输出
   friend std::ostream &operator<<(std::ostream &os, const ItemSet &item_set);

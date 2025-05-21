@@ -6,38 +6,25 @@
 #include "basic/slr_table.hpp"
 
 int main() {
-  constexpr int index = 1;
+  GrammarSet grammar_set(GRAMMAR_EXTEND, "P");
 
-  std::string gm_file = index_format("input/grammar/grammar", index, ".txt");
-  std::string ic_file = index_format("output/item_cluster/item_cluster", index, ".json");
-  std::string ic_file_ = index_format("output/item_cluster/item_cluster", index, ".txt");
-  std::string slr_file = index_format("output/slr_table/slr_table", index, ".csv");
+  ItemCluster item_cluster(grammar_set);
+  item_cluster.build();
+  item_cluster.to_txt("output/item_cluster/item_cluster.txt");
 
-  GrammarSet gs(gm_file, "P");
+  SLRTable slr_table(item_cluster);
+  slr_table.build();
+  slr_table.to_csv("output/slr_table/slr_table_extend_before.csv");
 
-  ItemCluster ic(gs);
-  ic.build();
-  ic.to_dot(index_format("output/item_cluster/item_cluster", index, ".dot"));
-  // ic.to_json(ic_file);
-  // ic.to_txt(ic_file_);
+  // 输出冲突状态
+  // slr_table.conflict_to_csv("output/slr_table/conflict_before.csv");
 
-  // SLRTable slr_table(ic);
-  // slr_table.build();
-  // // 输出冲突状态
-  // auto id_to_state = slr_table.id_to_state();
-  // auto conflict_states = slr_table.conflicts();
-  // for (const auto& conflict : conflict_states) {
-  //   const auto& state_name = id_to_state.at(conflict.state);
-  //   std::cout << state_name << ": " << std::endl;
-  //   std::cout << "  " << conflict.symbol << ": ";
-  //   for (const auto& action : conflict.actions) {
-  //     std::cout << action << " ";
-  //   }
-  //   std::cout << std::endl;
-  //   const auto& item_cluster_state = ic[state_name];
-  //   auto item_cluster_state_closure = item_cluster_state.closure;
-  //   std::cout << item_cluster_state_closure << std::endl;
-  // }
+  // 获取文法编号
+  // slr_table.id_to_grammar_to_txt("output/slr_table/id_to_grammar.txt");
+
+  // 消除冲突状态
+  slr_table.eliminate_conflict("output/slr_table/conflict_after.csv");
+  slr_table.to_csv("output/slr_table/slr_table_extend_after.csv");
   return 0;
 }
 

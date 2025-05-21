@@ -6,6 +6,8 @@
 #include <regex>
 #include <ostream>
 
+const std::string LEXICAL_NORMAL = "input/lexical/lexical_normal.json";
+const std::string LEXICAL_EXTEND = "input/lexical/lexical_extend.json";
 
 // 词法分析类：封装从 JSON 配置加载规则、分析输入、输出结果
 class Lexical {

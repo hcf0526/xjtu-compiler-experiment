@@ -61,6 +61,7 @@ std::vector<Lexical::Token> Lexical::analyze(const std::string& input) {
 
     bool matched = false;
     for (const auto& [type, regex] : regex_rules_) {
+      // std::cout << "type: " << type << std::endl;
       if (std::regex_search(source.cbegin() + pos, source.cend(), match, regex)) {
         tokens_.push_back({type, match.str()});
         pos += match.length();
@@ -114,7 +115,7 @@ void Lexical::parse_stream(const std::string &file) {
   for (auto& [_, group] : sorted) {
     for (auto& [type, pattern] : group) {
       try {
-        regex_rules_.emplace_back(type, std::regex("^" + pattern));
+        regex_rules_.emplace_back(type, std::regex("^(" + pattern + ")"));
       } catch (const std::regex_error& e) {
         std::cerr << "[Lexical] 错误的正则表达式. type: " << type << ", pattern: " << pattern
                   << std::endl << e.what() << std::endl;

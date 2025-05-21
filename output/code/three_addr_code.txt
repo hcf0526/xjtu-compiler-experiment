@@ -1,0 +1,33 @@
+LABEL system_table
+  t15 = CALL main, 0;
+LABEL main
+  t10 = 2;
+  t11 = 3.14;
+  arr[t10] = t11;
+  t12 = 1;
+  t13 = 8.8;
+  arr[t12] = t13;
+  PAR arr;
+  t14 = CALL max, 1;
+  RETURN t14;
+LABEL max
+  t0 = 0;
+  t1 = arr[t0];
+  max_val = t1;
+  t2 = 1;
+  t3 = arr[t2];
+  IF max_val < t3 THEN l0 ELSE l1;
+LABEL l0;
+  t4 = 1;
+  t5 = arr[t4];
+  max_val = t5;
+LABEL l1;
+  t6 = 2;
+  t7 = arr[t6];
+  IF max_val < t7 THEN l2 ELSE l3;
+LABEL l2;
+  t8 = 2;
+  t9 = arr[t8];
+  max_val = t9;
+LABEL l3;
+  RETURN max_val;

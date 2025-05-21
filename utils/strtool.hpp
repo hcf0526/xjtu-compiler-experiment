@@ -42,6 +42,35 @@ namespace strtool {
     return result;
   }
 
+  inline int extract_kth_number(const std::string& str, const int k) {
+    // 提取字符串中的第 k 个数字
+    // k 从 1 计数
+    int count = 0;
+    std::string current_number;
+
+    for (char ch : str) {
+      if (std::isdigit(ch)) {
+        current_number += ch;
+      } else if (!current_number.empty()) {
+        count++;
+        if (count == k) {
+          return std::stoi(current_number);
+        }
+        current_number.clear();
+      }
+    }
+
+    if (count < k && !current_number.empty()) {
+      count++;
+      if (count == k) {
+        return std::stoi(current_number);
+      }
+    }
+
+    throw std::out_of_range("未找到第 " + std::to_string(k) + " 个数字");
+  }
+
+
 } // namespace strtool
 
 #endif // STRTOOL_HPP

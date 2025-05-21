@@ -1,6 +1,7 @@
 #ifndef SYMBOL_TABLE_HPP
 #define SYMBOL_TABLE_HPP
 
+
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -11,7 +12,7 @@
 
 class Syntax {
 public:
-  struct SymbolTable;
+  struct Table;
 
   struct Entry {
     std::string name; // 符号名称
@@ -29,9 +30,9 @@ public:
     friend std::ostream &operator<<(std::ostream &os, const ArrayEntry &entry);
   };
 
-  struct FuncEntry : Entry {
-    std::shared_ptr<SymbolTable> mytab;
-    friend std::ostream &operator<<(std::ostream &os, const FuncEntry &entry);
+  struct FunEntry : Entry {
+    std::shared_ptr<Table> mytab;
+    friend std::ostream &operator<<(std::ostream &os, const FunEntry &entry);
   };
 
   struct ArrayPttEntry: Entry {
@@ -46,14 +47,14 @@ public:
   };
 
   using EntryPtr = std::shared_ptr<struct Syntax::Entry>;
-  using ArrayEntryPtr = std::shared_ptr<struct Syntax::ArrayEntry>;
-  using FuncEntryPtr = std::shared_ptr<struct Syntax::FuncEntry>;
+  using ArrEntryPtr = std::shared_ptr<struct Syntax::ArrayEntry>;
+  using FuncEntryPtr = std::shared_ptr<struct Syntax::FunEntry>;
   using ArrayPttEntryPtr = std::shared_ptr<struct ArrayPttEntry>;
   using FuncPttEntryPtr = std::shared_ptr<struct FuncPttEntry>;
 
-  struct SymbolTable {
+  struct Table {
     std::string name; // 符号表名称
-    std::shared_ptr<SymbolTable> outer = nullptr; // 指向外层符号表
+    std::shared_ptr<Table> outer = nullptr; // 指向外层符号表
     int width = 0; // 符号表宽度
     int argc = 0; // 参数个数
     std::vector<std::string> arglist; // 参数名称列表
@@ -62,13 +63,13 @@ public:
     std::vector<std::string> code; // 代码
     std::vector<std::shared_ptr<Entry> > entries; // 登记项
 
-    explicit SymbolTable(std::string name = "") : name(std::move(name)) {} // 构造函数
+    explicit Table(std::string name = "") : name(std::move(name)) {} // 构造函数
     void add_entry(const std::shared_ptr<Entry> &entry); // 添加登记项
     std::shared_ptr<Entry> lookup_entry(const std::string &name); // 查找登记项
-    friend std::ostream &operator<<(std::ostream &os, const SymbolTable &symbol_table);
+    friend std::ostream &operator<<(std::ostream &os, const Table &symbol_table);
   };
 
-  using TablePtr = std::shared_ptr<struct Syntax::SymbolTable>;
+  using TablePtr = std::shared_ptr<struct Syntax::Table>;
 
   struct Process {
     int state; // 状态
@@ -77,16 +78,16 @@ public:
     friend std::ostream &operator<<(std::ostream &os, const Process &p);
   };
 
-  struct SymbolWithAttribute {
+  struct SymAttr {
     std::string name;
     std::string value;
-    SymbolWithAttribute(std::string name, std::string value) : name(std::move(name)), value(std::move(value)) {}
-    SymbolWithAttribute(const Lexical::Token& token) : name(token.type), value(token.lexeme) {}
-    friend std::ostream &operator<<(std::ostream &os, const SymbolWithAttribute &symbol);
-    virtual ~SymbolWithAttribute() = default;
+    SymAttr(std::string name, std::string value) : name(std::move(name)), value(std::move(value)) {}
+    SymAttr(const Lexical::Token& token) : name(token.type), value(token.lexeme) {}
+    friend std::ostream &operator<<(std::ostream &os, const SymAttr &symbol);
+    virtual ~SymAttr() = default;
   };
 
-  using SymbolPtr = std::shared_ptr<struct SymbolWithAttribute>;
+  using SymPtr = std::shared_ptr<struct SymAttr>;
 
   // 构造函数：SLRTable作为语法分析器
   explicit Syntax(const SLRTable &slr_table);
@@ -96,121 +97,123 @@ public:
 
   // 解析输入字符串或文件
   bool parse(const std::vector<Lexical::Token> &tokens);
-
   bool parse_file(const std::string &filename, Lexical lexical);
-
-  friend std::ostream &operator<<(std::ostream &os, const Syntax &analyzer);
 
   std::unordered_map<std::string, TablePtr> symbol_table() const;
   void processes_to_txt(const std::string &filename) const;
   void symbol_table_to_txt(const std::string &filename) const;
 
-  static std::string get_table_name(const SymbolTable& symbol_table);
-
 protected:
-  const SLRTable &slr_table_; // 引用外部的语法分析表
+  const SLRTable &slr_table_; // 引用外部的SLR表
   std::vector<Process> processes_; // 语法分析过程记录
   std::unordered_map<std::string, TablePtr> map_symbol_table_; // 符号表映射
-  std::stack<std::shared_ptr<SymbolTable> > stack_symbol_table_; // 符号表栈
+  std::stack<std::shared_ptr<Table> > stack_symbol_table_; // 符号表栈
 
   // 辅助函数：从Token序列进行语义分析
+  friend std::ostream &operator<<(std::ostream &os, const FunEntry &entry);
+  friend std::ostream &operator<<(std::ostream &os, const Syntax &analyzer);
+  friend std::ostream &operator<<(std::ostream &os, const Table &symbol_table);
+  static std::string get_table_name(const Table& symbol_table);
+
   bool analyze_tokens(const std::vector<Lexical::Token> &tokens);
 
   virtual bool shift(int state_id, const Lexical::Token &token) = 0;
 
-  virtual SymbolPtr reduce(int grammar_id, const std::vector<SymbolPtr> &symbols) = 0;
+  virtual SymPtr reduce(int grammar_id, const std::vector<SymPtr> &symbols) = 0;
 };
 
 class SyntaxZyl : public Syntax {
 public:
-  struct SymbolT: SymbolWithAttribute {
+  struct SymbolT: SymAttr {
     std::string type;
     SymbolT(std::string name, std::string value, std::string type)
-        : SymbolWithAttribute(std::move(name), std::move(value)), type(std::move(type)) {}
+        : SymAttr(std::move(name), std::move(value)), type(std::move(type)) {}
   };
   using SymbolTPtr = std::shared_ptr<struct SymbolT>;
 
-  struct SymbolD: SymbolWithAttribute {
+  struct SymbolD: SymAttr {
     std::vector<std::string> place;
     SymbolD(std::string name, std::string value, std::vector<std::string> place)
-        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)) {}
+        : SymAttr(std::move(name), std::move(value)), place(std::move(place)) {}
   };
   using SymbolDPtr = std::shared_ptr<struct SymbolD>;
 
-  struct SymbolA: SymbolWithAttribute {
+  struct SymbolA: SymAttr {
     std::vector<std::string> place;
     SymbolA(std::string name, std::string value, std::vector<std::string> place)
-        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)) {}
+        : SymAttr(std::move(name), std::move(value)), place(std::move(place)) {}
   };
   using SymbolAPtr = std::shared_ptr<struct SymbolA>;
 
-  struct SymbolAC: SymbolWithAttribute {
+  struct SymbolAC: SymAttr {
     std::vector<std::string> place;
     SymbolAC(std::string name, std::string value, std::vector<std::string> place)
-        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)) {}
+        : SymAttr(std::move(name), std::move(value)), place(std::move(place)) {}
   };
   using SymbolACPtr = std::shared_ptr<struct SymbolAC>;
 
-  struct SymbolB: SymbolWithAttribute {
+  struct SymbolB: SymAttr {
     std::vector<std::string> tc;
     std::vector<std::string> fc;
     std::string code;
     SymbolB(std::string name, std::string value, std::vector<std::string> tc, std::vector<std::string> fc, std::string code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), tc(std::move(tc)), fc(std::move(fc)), code(std::move(code)) {}
+        : SymAttr(std::move(name), std::move(value)), tc(std::move(tc)), fc(std::move(fc)), code(std::move(code)) {}
   };
-  using SymbolBPtr = std::shared_ptr<struct SymbolB>;
+  using BPtr = std::shared_ptr<struct SymbolB>;
 
-  struct SymbolE: SymbolWithAttribute {
+  struct SymE: SymAttr {
     std::string place;
     std::string code;
-    SymbolE(std::string name, std::string value, std::string place, std::string code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
+    std::string type;
+    std::string num;
+    SymE(std::string name, std::string value, std::string place, std::string code, std::string type, std::string const_number)
+        : SymAttr(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)), type(std::move(type)), num(std::move(const_number)) {}
   };
-  using SymbolEPtr = std::shared_ptr<struct SymbolE>;
+  using EPtr = std::shared_ptr<struct SymE>;
 
-  struct SymbolEC: SymbolWithAttribute {
+  struct SymbolEC: SymAttr {
     std::vector<std::string> place;
     std::vector<std::string> code;
     SymbolEC(std::string name, std::string value, std::vector<std::string> place, std::vector<std::string> code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
+        : SymAttr(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
   };
   using SymbolECPtr = std::shared_ptr<struct SymbolEC>;
 
-  struct SymbolP: SymbolWithAttribute {
+  struct SymbolP: SymAttr {
     std::vector<std::string> code;
     SymbolP(std::string name, std::string value, std::vector<std::string> code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), code(std::move(code)) {}
+        : SymAttr(std::move(name), std::move(value)), code(std::move(code)) {}
   };
   using SymbolPPtr = std::shared_ptr<struct SymbolP>;
 
-  struct SymbolR: SymbolWithAttribute {
+  struct SymbolR: SymAttr {
     std::string place;
     std::string code;
 
     SymbolR(std::string name, std::string value, std::string place, std::string code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
+        : SymAttr(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
   };
   using SymbolRPtr = std::shared_ptr<struct SymbolR>;
 
-  struct SymbolRC: SymbolWithAttribute {
+  struct SymbolRC: SymAttr {
     std::vector<std::string> place;
     std::vector<std::string> code;
     SymbolRC(std::string name, std::string value, std::vector<std::string> place, std::vector<std::string> code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
+        : SymAttr(std::move(name), std::move(value)), place(std::move(place)), code(std::move(code)) {}
   };
-  using SymbolRCPtr = std::shared_ptr<struct SymbolRC>;
+  using RCPtr = std::shared_ptr<struct SymbolRC>;
 
-  struct SymbolS: SymbolWithAttribute {
+  struct SymS: SymAttr {
     std::string code;
-    SymbolS(std::string name, std::string value, std::string code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), code(std::move(code)) {}
+    SymS(std::string name, std::string value, std::string code)
+        : SymAttr(std::move(name), std::move(value)), code(std::move(code)) {}
   };
-  using SymbolSPtr = std::shared_ptr<struct SymbolS>;
+  using SPtr = std::shared_ptr<struct SymS>;
 
-  struct SymbolSC: SymbolWithAttribute {
+  struct SymbolSC: SymAttr {
     std::vector<std::string> code;
     SymbolSC(std::string name, std::string value, std::vector<std::string> code)
-        : SymbolWithAttribute(std::move(name), std::move(value)), code(std::move(code)) {}
+        : SymAttr(std::move(name), std::move(value)), code(std::move(code)) {}
   };
   using SymbolSCPtr = std::shared_ptr<struct SymbolSC>;
 
@@ -219,155 +222,181 @@ public:
 private:
   unsigned int variable_count_ = 0; // 变量计数器
   unsigned int label_count_ = 0; // 标签计数器
-  using AttrEqnPtr = SymbolPtr (SyntaxZyl::*)(const std::vector<SymbolPtr>&);
+  using AttrEqnPtr = SymPtr (SyntaxZyl::*)(const std::vector<SymPtr>&);
   std::unordered_map<Grammar, AttrEqnPtr, Grammar::Hash> reduce_map_;
 
   // 移进/归约
   bool shift(int state_id, const Lexical::Token &token) override;
-  SymbolPtr reduce(int grammar_id, const std::vector<SymbolPtr> &symbols) override;
+  SymPtr reduce(int grammar_id, const std::vector<SymPtr> &symbols) override;
   // 属性方程
   // 文法 1
   // P -> D' S'
-  Syntax::SymbolPtr reduce_program(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_program(const std::vector<SymPtr> &symbols);
 
   // 文法 4
   // D -> T d
-  Syntax::SymbolPtr reduce_declaration_var(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_declaration_var(const std::vector<SymPtr> &symbols);
 
   // 文法 5
   // D -> T d [ i ]
-  Syntax::SymbolPtr reduce_declaration_array(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_declaration_array(const std::vector<SymPtr> &symbols);
 
   // 文法 6
   // D -> T d ( A' ) { D' S' }
-  Syntax::SymbolPtr reduce_declaration_func(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_declaration_func(const std::vector<SymPtr> &symbols);
 
-  // 文法 7, 8
+  // 文法 7, 8, 39
   // T -> int
   // T -> void
-  Syntax::SymbolPtr reduce_type(const std::vector<SymbolPtr> &symbols);
+  // T -> float
+  Syntax::SymPtr reduce_type(const std::vector<SymPtr> &symbols);
 
   // 文法 9
   // A' -> ε
-  Syntax::SymbolPtr reduce_params(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_params(const std::vector<SymPtr> &symbols);
 
   // 文法 10
   // A' -> A' A ;
-  Syntax::SymbolPtr reduce_params_list(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_params_list(const std::vector<SymPtr> &symbols);
 
   // 文法 11
   // A -> T d
-  Syntax::SymbolPtr reduce_param_var(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_param_var(const std::vector<SymPtr> &symbols);
 
   // 文法 12
   // A -> T d [ ]
-  Syntax::SymbolPtr reduce_param_array(const std::vector<SymbolPtr> &symbols);
+  Syntax::SymPtr reduce_param_array(const std::vector<SymPtr> &symbols);
 
   // 文法 13
   // A -> T d ( )
-  SyntaxZyl::SymbolPtr reduce_param_func(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_param_func(const std::vector<SymPtr> &symbols);
 
   // 文法 14
   // S' -> S
-  SyntaxZyl::SymbolPtr reduce_sentences(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentences(const std::vector<SymPtr> &symbols);
 
   // 文法 15
   // S' -> S' ; S
-  SyntaxZyl::SymbolPtr reduce_sentences_list(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentences_list(const std::vector<SymPtr> &symbols);
 
   // 文法 16
   // S -> d = E
-  SyntaxZyl::SymbolPtr reduce_sentence_assign(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentence_assign(const std::vector<SymPtr> &symbols);
 
   // 文法 17
   // S -> if ( B ) S
-  SyntaxZyl::SymbolPtr reduce_sentence_if(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentence_if(const std::vector<SymPtr> &symbols);
 
   // 文法 18
   // S -> if ( B ) S else S
-  SyntaxZyl::SymbolPtr reduce_sentence_if_else(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentence_if_else(const std::vector<SymPtr> &symbols);
 
   // 文法 19
   // S -> while ( B ) S
-  SyntaxZyl::SymbolPtr reduce_sentence_while(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentence_while(const std::vector<SymPtr> &symbols);
 
   // 文法 20
   // S -> return E
-  SyntaxZyl::SymbolPtr reduce_sentence_return(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentence_return(const std::vector<SymPtr> &symbols);
 
   // 文法 21
   // S -> { S' }
-  SyntaxZyl::SymbolPtr reduce_sentence_block(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentence_block(const std::vector<SymPtr> &symbols);
 
   // 文法 22
   // S -> d ( R' )
-  SyntaxZyl::SymbolPtr reduce_sentence_call(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_sentence_call(const std::vector<SymPtr> &symbols);
 
   // 文法 23
   // B -> B ∧ B
-  SyntaxZyl::SymbolPtr reduce_bool_and(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_bool_and(const std::vector<SymPtr> &symbols);
 
   // 文法 24
   // B -> B ∨ B
-  SyntaxZyl::SymbolPtr reduce_bool_or(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_bool_or(const std::vector<SymPtr> &symbols);
 
   // 文法 25
   // B -> E r E
-  SyntaxZyl::SymbolPtr reduce_bool_relation(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_bool_relation(const std::vector<SymPtr> &symbols);
 
   // 文法 26
   // B -> E
-  SyntaxZyl::SymbolPtr reduce_bool_expr(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_bool_expr(const std::vector<SymPtr> &symbols);
 
   // 文法 27
   // E -> d = E
-  SyntaxZyl::SymbolPtr reduce_expr_assgin(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_expr_assgin(const std::vector<SymPtr> &symbols);
 
   // 文法 28
   // E -> i
-  SyntaxZyl::SymbolPtr reduce_expr_num(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_expr_num_int(const std::vector<SymPtr> &syms);
 
   // 文法 29
   // E -> d
-  SyntaxZyl::SymbolPtr reduce_expr_var(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_expr_var(const std::vector<SymPtr> &symbols);
 
   // 文法 30
   // E -> d ( R' )
-  SyntaxZyl::SymbolPtr reduce_expr_call(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_expr_call(const std::vector<SymPtr> &syms);
 
-  // 文法 31
+  // 文法 31, 32, 46, 47
   // E -> E + E
-  SyntaxZyl::SymbolPtr reduce_expr_add(const std::vector<SymbolPtr> &symbols);
-
-  // 文法 32
   // E -> E * E
-  SyntaxZyl::SymbolPtr reduce_expr_mul(const std::vector<SymbolPtr> &symbols);
+  // E -> E - E
+  // E -> E / E
+  SyntaxZyl::SymPtr reduce_expr_operator(const std::vector<SymPtr> &syms);
 
   // 文法 33
   // E -> ( E )
-  SyntaxZyl::SymbolPtr reduce_expr_bracket(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_expr_bracket(const std::vector<SymPtr> &syms);
 
   // 文法 34
   // R' -> ε
-  SyntaxZyl::SymbolPtr reduce_call_params(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_call_params(const std::vector<SymPtr> &symbols);
 
   // 文法 35
   // R' -> R' R ,
-  SyntaxZyl::SymbolPtr reduce_call_params_list(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_call_params_list(const std::vector<SymPtr> &symbols);
 
   // 文法 36
   // R -> E
-  SyntaxZyl::SymbolPtr reduce_call_param_expr(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_call_param_expr(const std::vector<SymPtr> &symbols);
 
   // 文法 37
   // R -> d [ ]
-  SyntaxZyl::SymbolPtr reduce_call_param_array(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_call_param_array(const std::vector<SymPtr> &symbols);
 
   // 文法 38
   // R -> d ( )
-  SyntaxZyl::SymbolPtr reduce_call_param_func(const std::vector<SymbolPtr> &symbols);
+  SyntaxZyl::SymPtr reduce_call_param_func(const std::vector<SymPtr> &symbols);
+
+  // 文法 40
+  // S -> d [ E ] = E
+  SyntaxZyl::SymPtr reduce_sentence_array_assgin(const std::vector<SymPtr> &syms);
+
+  // 文法 41
+  // S -> for ( S ; B ; S ) S
+  SyntaxZyl::SymPtr reduce_sentence_for(const std::vector<SymPtr> &syms);
+
+  // 文法 42
+  // S -> print E
+  SyntaxZyl::SymPtr reduce_sentence_print(const std::vector<SymPtr> &syms);
+
+  // 文法 43
+  // S -> input d
+  SyntaxZyl::SymPtr reduce_sentence_input(const std::vector<SymPtr> &syms);
+
+  // 文法 44
+  // E -> f
+  SyntaxZyl::SymPtr reduce_expr_num_float(const std::vector<SymPtr> &syms);
+
+  // 文法 45
+  // E = d [ E ]
+  SyntaxZyl::SymPtr reduce_expr_array(const std::vector<SymPtr> &syms);
 
   // 辅助函数
+
+
   std::string new_var();
 
   std::string new_label();
@@ -384,11 +413,21 @@ private:
 
   std::string merge_code(const std::vector<std::string> &code_list);
 
+  EntryPtr check_var(std::string d);
+
   void add_equation(const Grammar& grammar, AttrEqnPtr handler);
+
+  static std::string type_convert(const std::string& type1, const std::string& type2);
+
+  static std::string compute_const_number(const EPtr &e1, EPtr &e2, const std::string& op);
 
   static int size_of(const std::string& type);
 
-  std::shared_ptr<SymbolTable> pop_symbol_table();
+  static bool is_array(EntryPtr &entry);
+
+  static bool is_func(EntryPtr &entry);
+
+  std::shared_ptr<Table> pop_symbol_table();
 
 };
 

@@ -62,7 +62,7 @@ public:
     return data_;
   }
 
-public:
+private:
   std::vector<std::vector<std::string>> data_;
 
   static std::string escape_field(const std::string& field) {
@@ -97,42 +97,59 @@ public:
     std::istringstream stream(content);
     data_.clear();
     std::string line;
+    std::string current_line;
+    int quote_count = 0;
+
     while (std::getline(stream, line)) {
-      data_.push_back(parse_csv_line(line));
+      if (!current_line.empty()) current_line += "\n";
+      current_line += line;
+      // 统计当前行的引号数量
+      quote_count += std::count(line.begin(), line.end(), '"');
+      // 如果引号数量为偶数，说明字段闭合
+      if (quote_count % 2 == 0) {
+        data_.push_back(parse_csv_line(current_line));
+        current_line.clear();
+        quote_count = 0;
+      }
+    }
+    // 处理最后一行（如果没有换行符结尾）
+    if (!current_line.empty()) {
+      data_.push_back(parse_csv_line(current_line));
     }
     return true;
   }
 
-  static std::vector<std::string> parse_csv_line(const std::string& line) {
+  std::vector<std::string> parse_csv_line(const std::string& line) {
     std::vector<std::string> result;
     std::string field;
-    bool in_quotes = false;
+    bool in_quotes = false;  // 标记是否在引号内
 
     for (size_t i = 0; i < line.size(); ++i) {
       char ch = line[i];
       if (in_quotes) {
         if (ch == '"') {
+          // 如果遇到双引号，检查是否是转义的引号（两个引号）
           if (i + 1 < line.size() && line[i + 1] == '"') {
-            field += '"';
+            field += '"';  // 处理双引号转义
             ++i;
           } else {
-            in_quotes = false;
+            in_quotes = false;  // 结束引号内的字段
           }
         } else {
-          field += ch;
+          field += ch;  // 在引号内，继续添加字符
         }
       } else {
         if (ch == '"') {
-          in_quotes = true;
+          in_quotes = true;  // 进入引号内
         } else if (ch == ',') {
-          result.push_back(field);
+          result.push_back(field);  // 逗号分隔，保存当前字段
           field.clear();
         } else {
-          field += ch;
+          field += ch;  // 普通字符，添加到字段
         }
       }
     }
-    result.push_back(field); // 最后一个字段
+    result.push_back(field);  // 最后一个字段
     return result;
   }
 };

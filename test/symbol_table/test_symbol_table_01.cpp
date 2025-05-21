@@ -5,35 +5,33 @@
 #include "basic/item.hpp"
 #include "basic/grammar.hpp"
 #include "basic/slr_table.hpp"
+#include "basic/code.hpp"
 
 int main() {
-  constexpr int index = 1;
+  std::string program_file = index_format("input/program/program", 3, ".txt");
 
-  std::string regex_file = index_format("input/lexical/lexical", index, ".json");
-  std::string grammar_file = index_format("input/grammar/grammar", index, ".txt");
-  std::string slr_file = index_format("input/slr_table/slr_table", index, ".csv");
-  std::string symbol_file = index_format("output/symbol_table/symbol_table", index, ".txt");
-
-  std::string program_file = index_format("input/program/program", 1, ".txt");
   // 词法分析
-  Lexical lexical(regex_file);
+  Lexical lexical(LEXICAL_EXTEND);
   auto tokens = lexical.analyze(program_file);
+  lexical.to_txt("output/lexical/lexical.txt");
 
   // 文法集
-  GrammarSet grammar_set(grammar_file, "P");
+  GrammarSet grammar_set(GRAMMAR_EXTEND, "P");
   ItemCluster item_cluster(grammar_set);
   item_cluster.build();
 
   // SLR分析表
   SLRTable slr_table(item_cluster);
-  slr_table.read_csv(slr_file);
+  slr_table.read_csv(SLR_TABLE_EXTEND);
 
   // 符号表分析
   SyntaxZyl syntax(slr_table);
   syntax.parse(tokens);
-  syntax.processes_to_txt("output/symbol_table/processes.txt");
-  syntax.symbol_table_to_txt(symbol_file);
+  syntax.symbol_table_to_txt("output/symbol_table/symbol_table.txt");
 
+  // 代码输出
+  Code code(syntax);
+  code.to_three_addr_code("output/code/three_addr_code.txt");
   return 0;
 }
 

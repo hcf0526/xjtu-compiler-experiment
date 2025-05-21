@@ -40,6 +40,16 @@ json Item::to_json() const {
   return rhs_;
 }
 
+std::string Item::to_string() const {
+  std::ostringstream oss;
+  oss << lhs_ << " ->";
+  for (const auto& sym : rhs_) {
+    if (sym == "`") oss << " \u2022";
+    else oss << " " << sym;
+  }
+  return oss.str();
+}
+
 bool Item::operator==(const Item &other) const {
   return lhs_ == other.lhs_ && rhs_ == other.rhs_;
 }
@@ -329,6 +339,16 @@ json ItemSet::to_json(const std::string &filename) const {
   }
   compact_serializer::dump(result, file, true, 2);
   return result;
+}
+
+std::string ItemSet::to_string() const {
+  std::ostringstream oss;
+  for (const auto& [lhs, item_list] : items_) {
+    for (const auto& item : item_list) {
+      oss << item.to_string() << std::endl;
+    }
+  }
+  return oss.str();
 }
 
 std::ostream &operator<<(std::ostream &os, const ItemSet &item_set) {

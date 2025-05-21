@@ -1,6 +1,7 @@
 #include "slr_table.hpp"
 #include "utils/csv.hpp"
 #include <set>
+#include "utils/strtool.hpp"
 
 SLRTable::SLRTable(const std::string &content) {
   if (content.find(',') != content.npos && content.find("State") != content.npos) {
@@ -55,13 +56,34 @@ std::unordered_map<int, SLRTable::GotoRow> SLRTable::get_goto() const {
   return goto_table_;
 }
 
-void SLRTable::add_action(int state, const std::string& symbol, ActionType type, int target) {
+void SLRTable::add_action(const int state, const std::string& symbol, const ActionType type, const int target) {
   Action new_action{type, target};
   action_table_[state][symbol].insert(new_action);
 }
 
-void SLRTable::add_goto(int state, const std::string& non_terminal, int next_state) {
+void SLRTable::add_goto(const int state, const std::string& non_terminal, const int next_state) {
   goto_table_[state][non_terminal].insert(next_state);
+}
+
+void SLRTable::set_action(const int state, const std::string &symbol, const ActionType type, const int target) {
+  Action new_action{type, target};
+  action_table_[state][symbol] = {new_action};
+}
+
+void SLRTable::set_action(const int state, const std::string &symbol, const Action &action) {
+  action_table_[state][symbol] = {action};
+}
+
+void SLRTable::set_action(const int state, const std::string &symbol, const ActionSet &actions) {
+  action_table_[state][symbol] = actions;
+}
+
+void SLRTable::set_goto(const int state, const std::string &non_terminal, const int next_state) {
+  goto_table_[state][non_terminal] = {next_state};
+}
+
+void SLRTable::set_goto(const int state, const std::string &non_terminal, const GotoSet &next_states) {
+  goto_table_[state][non_terminal] = next_states;
 }
 
 int SLRTable::start_state() const {
@@ -484,6 +506,139 @@ void SLRTable::to_csv(const std::string &filename) const {
   csv.save(filename);
 }
 
+void SLRTable::conflict_to_txt(const std::string &filename) const {
+  std::ofstream out(filename);
+  if (!out) {
+    std::cerr << "[SLR] 无法打开文件 " << filename << std::endl;
+    return;
+  }
+  for (const auto& conflict : conflicts_) {
+    const auto& state_name = id_to_state_.at(conflict.state);
+    out << state_name << ": " << std::endl;
+    out << "  " << conflict.symbol << ": ";
+    for (const auto& action : conflict.actions) {
+      out << action << " ";
+    }
+    out << std::endl;
+    const auto& item_cluster_state = item_cluster_[state_name];
+    auto item_cluster_state_closure = item_cluster_state.closure;
+    out << item_cluster_state_closure << std::endl;
+  }
+}
+
+void SLRTable::conflict_to_csv(const std::string &filename) const {
+  Csv csv;
+
+  // 添加表头，包括新列 "修正"
+  csv.add_row({"Item Set", "冲突符号", "冲突动作", "状态集", "修正"});
+
+  for (const auto& conflict : conflicts_) {
+    const auto& state_name = id_to_state_.at(conflict.state);
+
+    // 创建当前行
+    std::vector<std::string> row;
+    std::ostringstream actions_stream;
+    for (const auto& action : conflict.actions) {
+      actions_stream << action << " ";
+    }
+
+    // 填充数据
+    row.push_back(state_name);  // Item Set
+    row.push_back(conflict.symbol);  // 冲突符号
+    row.push_back(actions_stream.str());  // 冲突动作
+    row.push_back(item_cluster_[state_name].closure.to_string());  // 状态集
+
+    // 添加 "修正" 列，默认值为空字符串
+    row.emplace_back("");  // 修正 (默认空)
+
+    // 添加当前行到CSV数据
+    csv.add_row(row);
+  }
+
+  // 保存到CSV文件
+  if (!csv.save(filename)) {
+    std::cerr << "[SLR] 无法保存 CSV 文件 " << filename << std::endl;
+  }
+}
+
+void SLRTable::eliminate_conflict(const std::string &filename) {
+  Csv csv;
+  if (!csv.load_file(filename)) {
+    std::cerr << "[SLR] 无法打开文件 " << filename << std::endl;
+    return;
+  }
+
+  // 获取 CSV 中的所有行
+  const std::vector<std::vector<std::string>>& rows = csv.rows();
+
+  // 遍历每一行
+  bool is_first_line = true;
+  for (const auto& row : rows) {
+    if (is_first_line) {
+      is_first_line = false;
+      continue; // 跳过表头
+    }
+
+    if (row.size() < 5) {
+      std::cerr << "[SLR] 冲突消解数据格式错误，缺少字段" << std::endl;
+      continue;
+    }
+
+    // 提取各字段
+    const std::string& item_set = row[0];      // 第1列：Item Set
+    const std::string& conflict_symbol = row[1]; // 第2列：冲突符号
+    const std::string& actions = row[2];       // 第3列：冲突动作
+    const std::string& closure = row[3];       // 第4列：状态集
+    const std::string& fix = row[4];           // 第5列：修正动作
+
+    // 检查并解析修正动作
+    Action action{};
+    if (fix.empty()) {
+      std::cerr << "[SLR] 修正动作为空." << std::endl;
+      continue;
+    }
+
+    if (fix[0] == 's') {
+      action.type = ActionType::SHIFT;
+      action.target = strtool::extract_kth_number(fix, 1);
+    } else if (fix[0] == 'r') {
+      action.type = ActionType::REDUCE;
+      action.target = strtool::extract_kth_number(fix, 1);
+    } else {
+      std::cerr << "[SLR] 无法识别的修正动作: " << fix << std::endl;
+      continue;
+    }
+
+    // 提取状态编号并设置动作
+    int state = strtool::extract_kth_number(item_set, 1);  // 从 Item Set 提取状态
+    set_action(state, conflict_symbol, action.type, action.target);
+  }
+}
+
+
+void SLRTable::id_to_grammar_to_txt(const std::string &filename) const {
+  std::ofstream out(filename);
+  if (!out) {
+    std::cerr << "[SLR] 无法打开文件 " << filename << std::endl;
+    return;
+  }
+  std::vector<std::pair<int, Grammar>> grammar_list;
+  const std::unordered_map<std::string, std::vector<Grammar>>& grammars = item_cluster_.grammar_set().grammars();
+  for (const auto& [name, grammar_vector] : grammars) {
+    for (const auto& grammar : grammar_vector) {
+      int id = grammar_to_id_.at(grammar);
+      grammar_list.emplace_back(id, grammar);
+    }
+  }
+  std::sort(grammar_list.begin(), grammar_list.end(),
+          [](const auto& a, const auto& b) {
+            return a.first < b.first;
+          });
+  for (const auto& [id, grammar] : grammar_list) {
+    out << id << ": " << grammar << std::endl;
+  }
+}
+
 void SLRTable::parse(const std::string &text) {
   parse_stream(text);
 }
@@ -505,14 +660,6 @@ void SLRTable::read_csv(const std::string& file) {
   parse_file(file);
 }
 
-int SLRTable::extract_number(const std::string& name) {
-  size_t pos = name.find_last_of(' ');
-  if (pos != std::string::npos && pos + 1 < name.size()) {
-    return std::stoi(name.substr(pos + 1));
-  }
-  return -1; // 提取失败
-}
-
 void SLRTable::assign_ids(const ItemCluster& cluster) {
   GrammarSet grammar_set = cluster.grammar_set();
   std::vector<std::string> state_names;
@@ -522,7 +669,7 @@ void SLRTable::assign_ids(const ItemCluster& cluster) {
 
   // 按编号排序
   std::sort(state_names.begin(), state_names.end(), [](const std::string& a, const std::string& b) {
-    return extract_number(a) < extract_number(b);
+    return strtool::extract_kth_number(a, 1) < strtool::extract_kth_number(b, 1);
   });
 
   int idx = 0;

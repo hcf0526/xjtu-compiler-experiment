@@ -5,7 +5,7 @@
 #include "syntax.hpp"
 #include "utils/strtool.hpp"
 
-void Syntax::SymbolTable::add_entry(const std::shared_ptr<Entry> &entry) {
+void Syntax::Table::add_entry(const std::shared_ptr<Entry> &entry) {
   // 检查是否重名
   for (const auto& e : entries) {
     if (e->name == entry->name) {
@@ -15,11 +15,14 @@ void Syntax::SymbolTable::add_entry(const std::shared_ptr<Entry> &entry) {
   entries.push_back(entry);
 }
 
-std::shared_ptr<Syntax::Entry> Syntax::SymbolTable::lookup_entry(const std::string &name) {
+std::shared_ptr<Syntax::Entry> Syntax::Table::lookup_entry(const std::string &name) {
   for (const auto& entry : entries) {
     if (entry->name == name) {
       return entry;
     }
+  }
+  if (this->outer) {
+    return this->outer->lookup_entry(name);
   }
   return nullptr; // 未找到
 }
@@ -45,7 +48,7 @@ std::ostream &operator<<(std::ostream &os, const Syntax::ArrayEntry &entry) {
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const Syntax::FuncEntry &entry) {
+std::ostream &operator<<(std::ostream &os, const Syntax::FunEntry &entry) {
   os << "(name: " << entry.name << ", type: " << strtool::to_upper(entry.type)
      << ", offset: " << entry.offset << ", mytab: "
      << Syntax::get_table_name(*entry.mytab) << ")";
@@ -66,12 +69,12 @@ std::ostream &operator<<(std::ostream &os, const SyntaxZyl::FuncPttEntry &entry)
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const Syntax::SymbolWithAttribute &symbol) {
+std::ostream &operator<<(std::ostream &os, const Syntax::SymAttr &symbol) {
   os << "(" << symbol.name << ", " << symbol.value << ")";
   return os;
 }
 
-std::ostream & operator<<(std::ostream &os, const Syntax::SymbolTable &symbol_table) {
+std::ostream & operator<<(std::ostream &os, const Syntax::Table &symbol_table) {
   os << (Syntax::get_table_name(symbol_table)) << ": {" << std::endl;
   os << "  width: " << symbol_table.width
      << " argc: " << symbol_table.argc
@@ -94,7 +97,7 @@ std::ostream & operator<<(std::ostream &os, const Syntax::SymbolTable &symbol_ta
     if (entry->type == "array") {
       os << "    " << *std::dynamic_pointer_cast<Syntax::ArrayEntry>(entry) << std::endl;
     } else if (entry->type == "func") {
-      os << "    " << *std::dynamic_pointer_cast<Syntax::FuncEntry>(entry) << std::endl;
+      os << "    " << *std::dynamic_pointer_cast<Syntax::FunEntry>(entry) << std::endl;
     } else if (entry->type == "arrayptt") {
       os << "    " << *std::dynamic_pointer_cast<SyntaxZyl::ArrayPttEntry>(entry) << std::endl;
     } else if (entry->type == "funcptt") {
@@ -168,7 +171,7 @@ bool Syntax::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
 
   // 状态栈和符号栈
   std::stack<int> state_stack;
-  std::stack<SymbolPtr> stack_token;
+  std::stack<SymPtr> stack_token;
 
   // 初始状态入栈
   state_stack.push(slr_table_.start_state());
@@ -189,7 +192,7 @@ bool Syntax::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
     const auto* action_set = slr_table_.get_action(current_state, symbol);
 
     if (!action_set || action_set->empty()) {
-      std::cerr << "[错误] 状态 " << current_state << " 符号 '" << symbol << "' 无有效动作。" << std::endl;
+      std::cerr << "[Syntax] 状态 " << current_state << " 符号 " << tokens_[pos].lexeme << " 无效" << std::endl;
       return false;
     }
 
@@ -207,7 +210,7 @@ bool Syntax::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
     if (action.type == SLRTable::SHIFT) {
       // 执行移进动作：状态入栈，符号入栈，向前移动输入
       state_stack.push(action.target);
-      stack_token.push(std::make_shared<SymbolWithAttribute>(tokens_[pos]));
+      stack_token.push(std::make_shared<SymAttr>(tokens_[pos]));
 
       if (!shift(action.target, tokens_[pos])) {
         std::cerr << "[错误] 子类 shift(" << action.target << ") 执行失败。" << std::endl;
@@ -223,7 +226,7 @@ bool Syntax::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
 
       bool is_epsilon = (rhs.empty() || (rhs.size() == 1 && rhs[0] == "ε"));
 
-      std::vector<SymbolPtr> reduced_tokens;
+      std::vector<SymPtr> reduced_tokens;
 
       // 弹出归约右部符号
       if (!is_epsilon) {
@@ -255,7 +258,7 @@ bool Syntax::analyze_tokens(const std::vector<Lexical::Token>& tokens) {
       state_stack.push(*goto_set->begin());
 
       // 调用 reduce，生成归约后的符号对象
-      SymbolPtr lhs_symbol = reduce(action.target, reduced_tokens);
+      SymPtr lhs_symbol = reduce(action.target, reduced_tokens);
 
       // 判断返回是否有效
       if (!lhs_symbol || lhs_symbol->name.empty()) {
@@ -286,7 +289,7 @@ std::unordered_map<std::string, Syntax::TablePtr> Syntax::symbol_table() const {
 
 SyntaxZyl::SyntaxZyl(const SLRTable& slr_table) : Syntax(slr_table) {
   // 添加默认的系统符号表
-  TablePtr system_table = std::make_shared<SymbolTable>("system_table");
+  TablePtr system_table = std::make_shared<Table>("system_table");
   system_table->rtype = "VOID";
   stack_symbol_table_.push(system_table);
   map_symbol_table_["system_table"] = system_table;
@@ -342,15 +345,15 @@ SyntaxZyl::SyntaxZyl(const SLRTable& slr_table) : Syntax(slr_table) {
   // 文法 27
   add_equation(Grammar("E -> d = E"), &SyntaxZyl::reduce_expr_assgin);
   // 文法 28
-  add_equation(Grammar("E -> i"), &SyntaxZyl::reduce_expr_num);
+  add_equation(Grammar("E -> i"), &SyntaxZyl::reduce_expr_num_int);
   // 文法 29
   add_equation(Grammar("E -> d"), &SyntaxZyl::reduce_expr_var);
   // 文法 30
   add_equation(Grammar("E -> d ( R' )"), &SyntaxZyl::reduce_expr_call);
   // 文法 31
-  add_equation(Grammar("E -> E + E"), &SyntaxZyl::reduce_expr_add);
+  add_equation(Grammar("E -> E + E"), &SyntaxZyl::reduce_expr_operator);
   // 文法 32
-  add_equation(Grammar("E -> E * E"), &SyntaxZyl::reduce_expr_mul);
+  add_equation(Grammar("E -> E * E"), &SyntaxZyl::reduce_expr_operator);
   // 文法 33
   add_equation(Grammar("E -> ( E )"), &SyntaxZyl::reduce_expr_bracket);
   // 文法 34
@@ -363,6 +366,25 @@ SyntaxZyl::SyntaxZyl(const SLRTable& slr_table) : Syntax(slr_table) {
   add_equation(Grammar("R -> d [ ]"), &SyntaxZyl::reduce_call_param_array);
   // 文法 38
   add_equation(Grammar("R -> d ( )"), &SyntaxZyl::reduce_call_param_func);
+  // 2025/05/19 新增:
+  // 文法 39
+  add_equation(Grammar("T -> float"), &SyntaxZyl::reduce_type);
+  // 文法 40
+  add_equation(Grammar("S -> d [ E ] = E"), &SyntaxZyl::reduce_sentence_array_assgin);
+  // 文法 41
+  add_equation(Grammar("S -> for ( S ; B ; S ) S"), &SyntaxZyl::reduce_sentence_for);
+  // 文法 42
+  add_equation(Grammar("S -> print E"), &SyntaxZyl::reduce_sentence_print);
+  // 文法 43
+  add_equation(Grammar("S -> input d"), &SyntaxZyl::reduce_sentence_input);
+  // 文法 44
+  add_equation(Grammar("E -> f"), &SyntaxZyl::reduce_expr_num_float);
+  // 文法 45
+  add_equation(Grammar("E -> d [ E ]"), &SyntaxZyl::reduce_expr_array);
+  // 文法 46
+  add_equation(Grammar("E -> E - E"), &SyntaxZyl::reduce_expr_operator);
+  // 文法 47
+  add_equation(Grammar("E -> E / E"), &SyntaxZyl::reduce_expr_operator);
 }
 
 // 根据不同的属性方程, 由程序员实现函数的定义, 父类提供接口.
@@ -372,7 +394,7 @@ bool SyntaxZyl::shift(int state_id, const Lexical::Token &token) {
   return true;
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_program(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_program(const std::vector<SymPtr> &symbols) {
   // 文法 1
   // P -> D' S'
   //      0  1
@@ -383,7 +405,7 @@ Syntax::SymbolPtr SyntaxZyl::reduce_program(const std::vector<SymbolPtr> &symbol
   return std::make_shared<SymbolP>(symbol_p);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_declaration_var(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_declaration_var(const std::vector<SymPtr> &symbols) {
   // 文法 4
   // D -> T d
   //      0 1
@@ -403,12 +425,12 @@ Syntax::SymbolPtr SyntaxZyl::reduce_declaration_var(const std::vector<SymbolPtr>
   return std::make_shared<SymbolD>(symbol_d);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_declaration_array(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_declaration_array(const std::vector<SymPtr> &symbols) {
   // 文法 5
   // D -> T d [ i ]
   //      0 1 2 3 4
   TablePtr symbol_table = stack_symbol_table_.top();
-  ArrayEntryPtr entry = std::make_shared<ArrayEntry>();
+  ArrEntryPtr entry = std::make_shared<ArrayEntry>();
   SymbolTPtr symbol_t = std::dynamic_pointer_cast<SymbolT>(symbols[0]);
   int array_length = std::stoi(symbols[3]->value);
 
@@ -427,7 +449,7 @@ Syntax::SymbolPtr SyntaxZyl::reduce_declaration_array(const std::vector<SymbolPt
   return std::make_shared<SymbolD>(symbol_d);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_declaration_func(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_declaration_func(const std::vector<SymPtr> &symbols) {
   // 文法 6
   // D -> T d ( A' ) { D' S' }
   //      0 1 2 3  4 5 6  7  8
@@ -443,7 +465,7 @@ Syntax::SymbolPtr SyntaxZyl::reduce_declaration_func(const std::vector<SymbolPtr
   map_symbol_table_[get_table_name(*symbol_table)] = symbol_table;
 
   // 创建函数登记项
-  FuncEntryPtr entry = std::make_shared<FuncEntry>();
+  FuncEntryPtr entry = std::make_shared<FunEntry>();
   SymbolTPtr symbol_t = std::dynamic_pointer_cast<SymbolT>(symbols[0]);
 
   entry->name = symbols[1]->value;
@@ -461,26 +483,29 @@ Syntax::SymbolPtr SyntaxZyl::reduce_declaration_func(const std::vector<SymbolPtr
   return std::make_shared<SymbolD>(symbol_d);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_type(const std::vector<SymbolPtr> &symbols) {
-  // 文法 7, 8
+Syntax::SymPtr SyntaxZyl::reduce_type(const std::vector<SymPtr> &symbols) {
+  // 文法 7, 8, 39
   // T -> int
   // T -> void
+  // T -> float
   SymbolT symbol_t = SymbolT("T", "T", symbols[0]->value);
   return std::make_shared<SymbolT>(symbol_t);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_params(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_params(const std::vector<SymPtr> &symbols) {
   // 文法 9
   // A' -> ε
   //       0
-  TablePtr symbol_table = std::make_shared<SymbolTable>();
-  stack_symbol_table_.push(symbol_table);
+  TablePtr table = std::make_shared<Table>();
+  TablePtr outer = stack_symbol_table_.top();
+  table->outer = outer;
+  stack_symbol_table_.push(table);
 
   SymbolAC symbol_a = SymbolAC("A'", "A'", {});
   return std::make_shared<SymbolAC>(symbol_a);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_params_list(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_params_list(const std::vector<SymPtr> &symbols) {
   // 文法 10
   // A' -> A' A ;
   //       0  1 2
@@ -493,7 +518,7 @@ Syntax::SymbolPtr SyntaxZyl::reduce_params_list(const std::vector<SymbolPtr> &sy
   return std::make_shared<SymbolAC>(symbol_ac_new);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_param_var(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_param_var(const std::vector<SymPtr> &symbols) {
   // 文法 11
   // A -> T d
   //      0 1
@@ -515,7 +540,7 @@ Syntax::SymbolPtr SyntaxZyl::reduce_param_var(const std::vector<SymbolPtr> &symb
   return std::make_shared<SymbolA>(symbol_a);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce_param_array(const std::vector<SymbolPtr> &symbols) {
+Syntax::SymPtr SyntaxZyl::reduce_param_array(const std::vector<SymPtr> &symbols) {
   // 文法 12
   // A -> T d [ ]
   //      0 1 2 3
@@ -538,7 +563,7 @@ Syntax::SymbolPtr SyntaxZyl::reduce_param_array(const std::vector<SymbolPtr> &sy
   return std::make_shared<SymbolA>(symbol_a);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_param_func(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_param_func(const std::vector<SymPtr> &symbols) {
   // 文法 13
   // A -> T d ( )
   //      0 1 2 3
@@ -561,21 +586,21 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_param_func(const std::vector<SymbolPtr> &
   return std::make_shared<SymbolA>(symbol_a);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentences(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentences(const std::vector<SymPtr> &symbols) {
   // 文法 14
   // S' -> S
   //       0
-  SymbolSPtr symbol_s = std::dynamic_pointer_cast<SymbolS>(symbols[0]);
+  SPtr symbol_s = std::dynamic_pointer_cast<SymS>(symbols[0]);
   SymbolSC symbol_sc = SymbolSC("S'", "S'", {symbol_s->code});
   return std::make_shared<SymbolSC>(symbol_sc);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentences_list(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentences_list(const std::vector<SymPtr> &symbols) {
   // 文法 15
   // S' -> S' ; S
   //       0  1 2
   SymbolSCPtr symbol_sc = std::dynamic_pointer_cast<SymbolSC>(symbols[0]);
-  SymbolSPtr symbol_s = std::dynamic_pointer_cast<SymbolS>(symbols[2]);
+  SPtr symbol_s = std::dynamic_pointer_cast<SymS>(symbols[2]);
 
   std::vector<std::string> new_code = symbol_sc->code;
   new_code.push_back(symbol_s->code);
@@ -583,43 +608,43 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentences_list(const std::vector<SymbolPt
   return std::make_shared<SymbolSC>(symbol_sc_new);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_assign(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_assign(const std::vector<SymPtr> &symbols) {
   // 文法 16
   // S -> d = E
   //      0 1 2
   std::string var_name = symbols[0]->value;
-  SymbolEPtr symbol_e = std::dynamic_pointer_cast<SymbolE>(symbols[2]);
+  EPtr symbol_e = std::dynamic_pointer_cast<SymE>(symbols[2]);
 
   std::string code = symbol_e->code;
   code += var_name + " = " + symbol_e->place + ";\n";
-  SymbolS symbol_s = SymbolS("S", "S", code);
-  return std::make_shared<SymbolS>(symbol_s);
+  SymS symbol_s = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_if(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_if(const std::vector<SymPtr> &symbols) {
   // 文法 17
   // S -> if ( B ) S
   //      0  1 2 3 4
-  SymbolBPtr symbol_b = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
-  SymbolSPtr symbol_s = std::dynamic_pointer_cast<SymbolS>(symbols[4]);
+  BPtr symbol_b = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
+  SPtr symbol_s = std::dynamic_pointer_cast<SymS>(symbols[4]);
 
   std::string code = symbol_b->code;
   code += gen_code("LABEL", symbol_b->tc);
-  code += symbol_s->code + "\n";
+  code += symbol_s->code;
   code += gen_code("LABEL", symbol_b->fc);
 
-  SymbolS symbol_s_new = SymbolS("S", "S", code);
-  return std::make_shared<SymbolS>(symbol_s_new);
+  SymS symbol_s_new = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s_new);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_if_else(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_if_else(const std::vector<SymPtr> &symbols) {
   // 文法 18
   // S -> if ( B ) S else S
   //      0  1 2 3 4 5    6
   std::string label = new_label();
-  SymbolBPtr symbol_b = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
-  SymbolSPtr symbol_s1 = std::dynamic_pointer_cast<SymbolS>(symbols[4]);
-  SymbolSPtr symbol_s2 = std::dynamic_pointer_cast<SymbolS>(symbols[6]);
+  BPtr symbol_b = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
+  SPtr symbol_s1 = std::dynamic_pointer_cast<SymS>(symbols[4]);
+  SPtr symbol_s2 = std::dynamic_pointer_cast<SymS>(symbols[6]);
 
   std::string code = symbol_b->code;
   code += gen_code("LABEL", symbol_b->tc);
@@ -629,17 +654,17 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_if_else(const std::vector<Symbol
   code += symbol_s2->code;
   code += gen_code("LABEL", label);
 
-  SymbolS symbol_s_new = SymbolS("S", "S", code);
-  return std::make_shared<SymbolS>(symbol_s_new);
+  SymS symbol_s_new = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s_new);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_while(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_while(const std::vector<SymPtr> &symbols) {
   // 文法 19
   // S -> while ( B ) S
   //      0     1 2 3 4
   std::string label = new_label();
-  SymbolBPtr symbol_b = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
-  SymbolSPtr symbol_s = std::dynamic_pointer_cast<SymbolS>(symbols[4]);
+  BPtr symbol_b = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
+  SPtr symbol_s = std::dynamic_pointer_cast<SymS>(symbols[4]);
 
   std::string code = gen_code("LABEL", {label});
   code += symbol_b->code;
@@ -648,57 +673,70 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_while(const std::vector<SymbolPt
   code += gen_code("GOTO", label);
   code += gen_code("LABEL", symbol_b->fc);
 
-  SymbolS symbol_s_new = SymbolS("S", "S", code);
-  return std::make_shared<SymbolS>(symbol_s_new);
+  SymS symbol_s_new = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s_new);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_return(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_return(const std::vector<SymPtr> &symbols) {
   // 文法 20
   // S -> return E
   //      0      1
-  SymbolEPtr symbol_e = std::dynamic_pointer_cast<SymbolE>(symbols[1]);
+  EPtr symbol_e = std::dynamic_pointer_cast<SymE>(symbols[1]);
 
   std::string code = symbol_e->code;
   code += gen_code("RETURN", symbol_e->place);
 
-  SymbolS symbol_s = SymbolS("S", "S", code);
-  return std::make_shared<SymbolS>(symbol_s);
+  SymS symbol_s = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_block(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_block(const std::vector<SymPtr> &symbols) {
   // 文法 21
   // S -> { S' }
   //      0 1  2
   SymbolSCPtr symbol_sc = std::dynamic_pointer_cast<SymbolSC>(symbols[1]);
 
-  SymbolS symbol_s = SymbolS("S", "S", merge_code(symbol_sc->code));
-  return std::make_shared<SymbolS>(symbol_s);
+  SymS symbol_s = SymS("S", "S", merge_code(symbol_sc->code));
+  return std::make_shared<SymS>(symbol_s);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_sentence_call(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_call(const std::vector<SymPtr> &symbols) {
   // 文法 22
   // S -> d ( R' )
   //      0 1 2  3
-  std::string var_name = symbols[0]->value;
-  SymbolRCPtr symbol_rc = std::dynamic_pointer_cast<SymbolRC>(symbols[2]);
+  std::string d = symbols[0]->value;
+  TablePtr table = stack_symbol_table_.top();
+  RCPtr rlist = std::dynamic_pointer_cast<SymbolRC>(symbols[2]);
 
-  std::string new_var_name = new_var();
-  std::string code = new_params(symbol_rc->place);
-  code += new_var_name + " = " + "CALL " + var_name + ", " + std::to_string(symbol_rc->place.size()) + ";\n";
+  EntryPtr entry = table->lookup_entry(d);
+  if (!entry) {
+    std::cerr << "[错误] 函数 " << d << " 未定义" << std::endl;
+    throw std::runtime_error("函数" + d + "未定义");
+    return nullptr;
+  }
+  if (entry->type != "func") {
+    std::cerr << "[错误] " << d << " 不是函数类型" << std::endl;
+    throw std::runtime_error(d + "不是函数类型");
+    return nullptr;
+  }
 
-  std::string symbol_s_code = merge_code(symbol_rc->code);
-  symbol_s_code += code;
+  std::string var = new_var();
+  std::string code = new_params(rlist->place);
+  code += var + " = " + "CALL " + d + ", " + std::to_string(rlist->place.size()) + ";\n";
 
-  SymbolS symbol_s = SymbolS("S", "S", symbol_s_code);
-  return std::make_shared<SymbolS>(symbol_s);
+  std::string s_code = merge_code(rlist->code);
+  s_code += code;
+
+  SymS s = SymS("S", "S", s_code);
+  return std::make_shared<SymS>(s);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_and(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_bool_and(const std::vector<SymPtr> &symbols) {
   // 文法 23
   // B -> B ∧ B
   //      0 1 2
-  SymbolBPtr symbol_b1 = std::dynamic_pointer_cast<SymbolB>(symbols[0]);
-  SymbolBPtr symbol_b2 = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
+  BPtr symbol_b1 = std::dynamic_pointer_cast<SymbolB>(symbols[0]);
+  BPtr symbol_b2 = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
 
   std::vector<std::string> tc = symbol_b2->tc;
   std::vector<std::string> fc = merge_list(symbol_b1->fc, symbol_b2->fc);
@@ -711,12 +749,12 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_and(const std::vector<SymbolPtr> &sy
   return std::make_shared<SymbolB>(symbol_b);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_or(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_bool_or(const std::vector<SymPtr> &symbols) {
   // 文法 24
   // B -> B ∨ B
   //      0 1 2
-  SymbolBPtr symbol_b1 = std::dynamic_pointer_cast<SymbolB>(symbols[0]);
-  SymbolBPtr symbol_b2 = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
+  BPtr symbol_b1 = std::dynamic_pointer_cast<SymbolB>(symbols[0]);
+  BPtr symbol_b2 = std::dynamic_pointer_cast<SymbolB>(symbols[2]);
 
   std::vector<std::string> tc = merge_list(symbol_b1->tc, symbol_b2->tc);
   std::vector<std::string> fc = symbol_b2->fc;
@@ -729,14 +767,14 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_or(const std::vector<SymbolPtr> &sym
   return std::make_shared<SymbolB>(symbol_b);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_relation(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_bool_relation(const std::vector<SymPtr> &symbols) {
   // 文法 25
   // B -> E r E
   //      0 1 2
   std::string label1 = new_label();
   std::string label2 = new_label();
-  SymbolEPtr symbol_e1 = std::dynamic_pointer_cast<SymbolE>(symbols[0]);
-  SymbolEPtr symbol_e2 = std::dynamic_pointer_cast<SymbolE>(symbols[2]);
+  EPtr symbol_e1 = std::dynamic_pointer_cast<SymE>(symbols[0]);
+  EPtr symbol_e2 = std::dynamic_pointer_cast<SymE>(symbols[2]);
 
   std::vector<std::string> tc = { label1 };
   std::vector<std::string> fc = { label2 };
@@ -748,15 +786,13 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_relation(const std::vector<SymbolPtr
   return std::make_shared<SymbolB>(symbol_b);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_expr(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_bool_expr(const std::vector<SymPtr> &symbols) {
   // 文法 26
   // B -> E
   //      0
-  std::cout << "B -> E" << std::endl;
   std::string label1 = new_label();
   std::string label2 = new_label();
-  SymbolEPtr symbol_e = std::dynamic_pointer_cast<SymbolE>(symbols[0]);
-  std::cout << "B code: " << symbol_e->code << std::endl;
+  EPtr symbol_e = std::dynamic_pointer_cast<SymE>(symbols[0]);
 
   std::vector<std::string> tc = { label1 };
   std::vector<std::string> fc = { label2 };
@@ -764,115 +800,135 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_bool_expr(const std::vector<SymbolPtr> &s
   code += "IF " + symbol_e->place + " != 0 ";
   code += "THEN " + label1 + " ELSE " + label2 + ";\n";
 
-  std::cout << "B tc: " << tc.size() << std::endl;
-  std::cout << "B fc: " << fc.size() << std::endl;
-
   SymbolB symbol_b = SymbolB("B", "B", tc, fc, code);
   return std::make_shared<SymbolB>(symbol_b);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_assgin(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_assgin(const std::vector<SymPtr> &symbols) {
   // 文法 27
   // E -> d = E
   //      0 1 2
-  std::string var_name = symbols[0]->value;
-  SymbolEPtr symbol_e = std::dynamic_pointer_cast<SymbolE>(symbols[2]);
+  std::string var = symbols[0]->value;
+  EPtr e = std::dynamic_pointer_cast<SymE>(symbols[2]);
 
-  std::string code = symbol_e->code;
-  code += var_name + " = " + symbol_e->place + ";\n";
+  // code 域
+  std::string code = e->code;
+  code += var + " = " + e->place + ";\n";
 
-  SymbolE symbol_e_new = SymbolE("E", "E", var_name, code);
-  return std::make_shared<SymbolE>(symbol_e_new);
+  SymE e_new = SymE("E", "E", var, code, e->type, e->num);
+  return std::make_shared<SymE>(e_new);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_num(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_num_int(const std::vector<SymPtr> &syms) {
   // 文法 28
   // E -> i
   //      0
-  std::string var_name = new_var();
+  std::string var = new_var();
 
-  std::string code = var_name + " = " + symbols[0]->value + ";\n";
+  std::string code = var + " = " + syms[0]->value + ";\n";
 
-  SymbolE symbol_e = SymbolE("E", "E", var_name, code);
-  return std::make_shared<SymbolE>(symbol_e);
+  SymE e = SymE("E", "E", var, code, "int", syms[0]->value);
+  return std::make_shared<SymE>(e);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_var(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_var(const std::vector<SymPtr> &symbols) {
   // 文法 29
   // E -> d
   //      0
   std::string var_name = symbols[0]->value;
   TablePtr symbol_table = stack_symbol_table_.top();
 
-  if (!symbol_table->lookup_entry(var_name)) {
-    std::cerr << "[Syntax] 变量 " << var_name << " 未定义." << std::endl;
+  EntryPtr entry = symbol_table->lookup_entry(var_name);
+  if (!entry) {
     throw std::runtime_error("未定义变量" + var_name);
     return nullptr;
   }
 
-  SymbolE symbol_e = SymbolE("E", "E", var_name, "");
-  return std::make_shared<SymbolE>(symbol_e);
+  SymE symbol_e = SymE("E", "E", var_name, "", entry->type, "");
+  return std::make_shared<SymE>(symbol_e);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_call(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_call(const std::vector<SymPtr> &syms) {
   // 文法 30
   // E -> d ( R' )
   //      0 1 2  3
-  std::string var_name = symbols[0]->value;
-  SymbolRCPtr symbol_rc = std::dynamic_pointer_cast<SymbolRC>(symbols[2]);
+  std::string d = syms[0]->value;
+  TablePtr symbol_table = stack_symbol_table_.top();
+  RCPtr rlist = std::dynamic_pointer_cast<SymbolRC>(syms[2]);
 
-  std::string new_var_name = new_var();
-  std::string code = new_params(symbol_rc->place);
-  code += new_var_name + " = " + "CALL " + var_name + ", " + std::to_string(symbol_rc->place.size()) + ";\n";
+  std::string var = new_var();
+  std::string code = new_params(rlist->place);
+  code += var + " = " + "CALL " + d + ", " + std::to_string(rlist->place.size()) + ";\n";
 
-  std::string symbol_e_code = merge_code(symbol_rc->code);
-  symbol_e_code += code;
+  std::string e_code = merge_code(rlist->code);
+  e_code += code;
 
-  SymbolE symbol_e = SymbolE("E", "E", new_var_name, symbol_e_code);
-  return std::make_shared<SymbolE>(symbol_e);
+  EntryPtr entry = symbol_table->lookup_entry(d);
+  if (!entry) {
+    throw std::runtime_error("未定义函数" + d);
+    return nullptr;
+  }
+  if (!is_func(entry)) {
+    std::cerr << "[Syntax] " << d << " 不是函数." << std::endl;
+    throw std::runtime_error("不是函数" + d);
+  }
+
+  std::string rtype;
+  if (entry->type == "func") {
+    FuncEntryPtr func_entry = std::dynamic_pointer_cast<FunEntry>(entry);
+    if (func_entry->mytab->rtype == "VOID") {
+      std::cerr << "[Syntax] 函数 " << d << " 返回值类型错误." << std::endl;
+      throw std::runtime_error("函数返回值类型错误");
+    }
+    rtype = func_entry->mytab->rtype;
+  } else {
+    FuncPttEntryPtr func_entry = std::dynamic_pointer_cast<FuncPttEntry>(entry);
+    if (func_entry->rtype == "VOID") {
+      std::cerr << "[Syntax] 函数 " << d << " 返回值类型错误." << std::endl;
+      throw std::runtime_error("函数返回值类型错误");
+    }
+    rtype = func_entry->rtype;
+  }
+
+  SymE e = SymE("E", "E", var, e_code, rtype, "");
+  return std::make_shared<SymE>(e);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_add(const std::vector<SymbolPtr> &symbols) {
-  // 文法 31
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_operator(const std::vector<SymPtr> &syms) {
+  // 文法 31, 32
   // E -> E + E
-  //      0 1 2
-  std::string new_var_name = new_var();
-  SymbolEPtr symbol_e1 = std::dynamic_pointer_cast<SymbolE>(symbols[0]);
-  SymbolEPtr symbol_e2 = std::dynamic_pointer_cast<SymbolE>(symbols[2]);
-
-  std::string code = symbol_e1->code + symbol_e2->code;
-  code += new_var_name + " = " + symbol_e1->place + " + " + symbol_e2->place + ";\n";
-
-  SymbolE symbol_e = SymbolE("E", "E", new_var_name, code);
-  return std::make_shared<SymbolE>(symbol_e);
-}
-
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_mul(const std::vector<SymbolPtr> &symbols) {
-  // 文法 32
   // E -> E * E
-  //      0 1 2
-  std::string new_var_name = new_var();
-  SymbolEPtr symbol_e1 = std::dynamic_pointer_cast<SymbolE>(symbols[0]);
-  SymbolEPtr symbol_e2 = std::dynamic_pointer_cast<SymbolE>(symbols[2]);
+  // E -> E - E
+  // E -> E / E
+  std::string var = new_var();
+  std::string op = syms[1]->value;
+  EPtr e1 = std::dynamic_pointer_cast<SymE>(syms[0]);
+  EPtr e2 = std::dynamic_pointer_cast<SymE>(syms[2]);
 
-  std::string code = symbol_e1->code + symbol_e2->code;
-  code += new_var_name + " = " + symbol_e1->place + " * " + symbol_e2->place + ";\n";
+  std::string code = e1->code + e2->code;
+  code += var + " = " + e1->place + " " + op + " " + e2->place + ";\n";
 
-  SymbolE symbol_e = SymbolE("E", "E", new_var_name, code);
-  return std::make_shared<SymbolE>(symbol_e);
+  if (e1->type != e2->type) {
+    throw std::runtime_error("类型不匹配" + e1->type + syms[1]->value + e2->type);
+  }
+
+  std::string num = compute_const_number(e1, e2, op);
+
+  SymE e = SymE("E", "E", var, code, e1->type, num);
+  return std::make_shared<SymE>(e);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_bracket(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_bracket(const std::vector<SymPtr> &syms) {
   // 文法 33
   // E -> ( E )
   //      0 1 2
-  SymbolEPtr symbol_e = std::dynamic_pointer_cast<SymbolE>(symbols[1]);
+  EPtr e = std::dynamic_pointer_cast<SymE>(syms[1]);
 
-  SymbolE symbol_e_new = SymbolE("E", "E", symbol_e->place, symbol_e->code);
-  return std::make_shared<SymbolE>(symbol_e_new);
+  SymE e_new = SymE("E", "E", e->place, e->code, e->type, e->num);
+  return std::make_shared<SymE>(e_new);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_params(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_call_params(const std::vector<SymPtr> &symbols) {
   // 文法 34
   // R' -> ε
   //       0
@@ -880,11 +936,11 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_params(const std::vector<SymbolPtr> 
   return std::make_shared<SymbolRC>(symbol_rc);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_params_list(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_call_params_list(const std::vector<SymPtr> &symbols) {
   // 文法 35
   // R' -> R' R ,
   //       0  1 2
-  SymbolRCPtr symbol_rc = std::dynamic_pointer_cast<SymbolRC>(symbols[0]);
+  RCPtr symbol_rc = std::dynamic_pointer_cast<SymbolRC>(symbols[0]);
   SymbolRPtr symbol_r = std::dynamic_pointer_cast<SymbolR>(symbols[1]);
 
   std::vector<std::string> place = symbol_rc->place;
@@ -897,16 +953,16 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_params_list(const std::vector<Symbol
   return std::make_shared<SymbolRC>(symbol_rc_new);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_param_expr(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_call_param_expr(const std::vector<SymPtr> &symbols) {
   // 文法 36
   // R -> E
   //      0
-  SymbolEPtr symbol_e = std::dynamic_pointer_cast<SymbolE>(symbols[0]);
+  EPtr symbol_e = std::dynamic_pointer_cast<SymE>(symbols[0]);
   SymbolR symbol_r = SymbolR("R", "R", symbol_e->place, symbol_e->code);
   return std::make_shared<SymbolR>(symbol_r);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_param_array(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_call_param_array(const std::vector<SymPtr> &symbols) {
   // 文法 37
   // R -> d [ ]
   //      0 1 2
@@ -915,13 +971,170 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_param_array(const std::vector<Symbol
   return std::make_shared<SymbolR>(symbol_r);
 }
 
-SyntaxZyl::SymbolPtr SyntaxZyl::reduce_call_param_func(const std::vector<SymbolPtr> &symbols) {
+SyntaxZyl::SymPtr SyntaxZyl::reduce_call_param_func(const std::vector<SymPtr> &symbols) {
   // 文法 38
   // R -> d ( )
   //      0 1 2
   std::string var_name = symbols[0]->value;
   SymbolR symbol_r = SymbolR("R", "R", var_name, "");
   return std::make_shared<SymbolR>(symbol_r);
+}
+
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_array_assgin(const std::vector<SymPtr> &syms) {
+  // 文法 40
+  // S -> d [ E ] = E
+  //      0 1 2 3 4 5
+  std::string d = syms[0]->value;
+  TablePtr symbol_table = stack_symbol_table_.top();
+  EPtr e1 = std::dynamic_pointer_cast<SymE>(syms[2]);
+  EPtr e2 = std::dynamic_pointer_cast<SymE>(syms[5]);
+
+  EntryPtr entry = symbol_table->lookup_entry(d);
+  if (!entry) {
+    std::cerr << "[Syntax] 数组 " << d << " 未定义." << std::endl;
+    throw std::runtime_error("未定义数组" + d);
+    return nullptr;
+  }
+
+  if (!is_array(entry)) {
+    std::cerr << "[Syntax] " << "变量" << d << " 不支持[]操作." << std::endl;
+    throw std::runtime_error("非数组变量" + d);
+    return nullptr;
+  }
+
+  if (e1->type != "int") {
+    std::cerr << "[Syntax] 数组下标 " << e1->type << " 不是整数." << std::endl;
+    throw std::runtime_error("数组下标不是整数");
+    return nullptr;
+  }
+
+  ArrEntryPtr array_entry = std::dynamic_pointer_cast<ArrayEntry>(entry);
+  if (!e1->num.empty()) {
+    int index = std::stoi(e1->num);
+    if (index < 0 || index >= array_entry->dim[0]) {
+      throw std::runtime_error("数组下标越界" + d + "[" + std::to_string(index) + "]");
+      return nullptr;
+    }
+  }
+
+  std::string code = e1->code + e2->code;
+  code += d + "[" + e1->place + "] = " + e2->place + ";\n";
+
+  SPtr s = std::make_shared<SymS>("S", "S", code);
+  return s;
+}
+
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_for(const std::vector<SymPtr> &syms) {
+  // 文法 41
+  // S -> for ( S ; B ; S ) S
+  //      0   1 2 3 4 5 6 7 8
+  std::string label = new_label();
+  SPtr s1 = std::dynamic_pointer_cast<SymS>(syms[2]);
+  BPtr b = std::dynamic_pointer_cast<SymbolB>(syms[4]);
+  SPtr s2 = std::dynamic_pointer_cast<SymS>(syms[6]);
+  SPtr s3 = std::dynamic_pointer_cast<SymS>(syms[8]);
+
+  std::string code = s1->code;
+  code += gen_code("LABEL", {label});
+  code += b->code;
+  code += gen_code("LABEL", b->tc);
+  code += s3->code;
+  code += s2->code;
+  code += gen_code("GOTO", label);
+  code += gen_code("LABEL", b->fc);
+
+  SymS symbol_s = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s);
+}
+
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_print(const std::vector<SymPtr> &syms) {
+  // 文法 42
+  // S -> print E
+  //      0     1
+  EPtr e = std::dynamic_pointer_cast<SymE>(syms[1]);
+
+  std::string code = e->code;
+  code += gen_code("PRINT", e->place);
+
+  SymS symbol_s = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s);
+}
+
+SyntaxZyl::SymPtr SyntaxZyl::reduce_sentence_input(const std::vector<SymPtr> &syms) {
+  // 文法 43
+  // S -> input d
+  //      0     1
+  std::string d = syms[1]->value;
+  EntryPtr entry = check_var(d);
+
+  std::string code = gen_code("INPUT", d);
+
+  SymS symbol_s = SymS("S", "S", code);
+  return std::make_shared<SymS>(symbol_s);
+}
+
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_num_float(const std::vector<SymPtr> &syms) {
+  // 文法 44
+  // E -> f
+  //      0
+  std::string var = new_var();
+  std::string code = var + " = " + syms[0]->value + ";\n";
+
+  SymE e = SymE("E", "E", var, code, "float", syms[0]->value);
+  return std::make_shared<SymE>(e);
+}
+
+SyntaxZyl::SymPtr SyntaxZyl::reduce_expr_array(const std::vector<SymPtr> &syms) {
+  // 文法 45
+  // E -> d [ E ]
+  //      0 1 2 3
+  std::string d = syms[0]->value;
+  std::string var = new_var();
+  TablePtr symbol_table = stack_symbol_table_.top();
+  EPtr e = std::dynamic_pointer_cast<SymE>(syms[2]);
+
+  EntryPtr entry = symbol_table->lookup_entry(d);
+  if (!entry) {
+    std::cerr << "[Syntax] 数组 " << d << " 未定义." << std::endl;
+    throw std::runtime_error("未定义数组" + d);
+    return nullptr;
+  }
+
+  if (!is_array(entry)) {
+    std::cerr << "[Syntax] " << "变量" << d << " 不支持[]操作." << std::endl;
+    throw std::runtime_error("非数组变量" + d);
+    return nullptr;
+  }
+
+  if (e->type != "int") {
+    std::cerr << "[Syntax] 数组下标 " << e->type << " 不是整数." << std::endl;
+    throw std::runtime_error("数组下标不是整数");
+    return nullptr;
+  }
+
+  std::string etype;
+  if (entry->type == "array") {
+    ArrEntryPtr array_entry = std::dynamic_pointer_cast<ArrayEntry>(entry);
+    if (!e->num.empty()) {
+      int index = std::stoi(e->num);
+      if (index < 0 || index >= array_entry->dim[0]) {
+        throw std::runtime_error("数组下标越界" + d + "[" + std::to_string(index) + "]");
+        return nullptr;
+      }
+    }
+    etype = array_entry->etype;
+  } else {
+    ArrayPttEntryPtr array_entry = std::dynamic_pointer_cast<ArrayPttEntry>(entry);
+    etype = array_entry->etype;
+  }
+
+
+
+  std::string code = e->code;
+  code += var + " = " + d + "[" + e->place + "];\n";
+
+  SymE symbol_e = SymE("E", "E", var, code, etype, "");
+  return std::make_shared<SymE>(symbol_e);
 }
 
 std::string SyntaxZyl::new_var() {
@@ -960,6 +1173,15 @@ std::string SyntaxZyl::new_params(const std::vector<std::string> &parlist) {
   return oss.str();
 }
 
+SyntaxZyl::EntryPtr SyntaxZyl::check_var(std::string d) {
+  TablePtr symbol_table = stack_symbol_table_.top();
+  EntryPtr entry = symbol_table->lookup_entry(d);
+  if (!entry) {
+    throw std::runtime_error("未定义变量" + d);
+  }
+  return entry;
+}
+
 std::vector<std::string> SyntaxZyl::merge_list(const std::vector<std::string> &list1,
   const std::vector<std::string> &list2) {
   std::vector<std::string> merged_list = list1;
@@ -979,7 +1201,48 @@ void SyntaxZyl::add_equation(const Grammar &grammar, AttrEqnPtr handler) {
   reduce_map_.emplace(grammar, handler);
 }
 
-Syntax::SymbolPtr SyntaxZyl::reduce(int grammar_id, const std::vector<SymbolPtr> &symbols) {
+std::string SyntaxZyl::type_convert(const std::string &type1, const std::string &type2) {
+  return "还没有实现类型转换";
+}
+
+#define PERFORM_OPERATION {  \
+if (op == "+") {                              \
+num = num1 + num2;                        \
+} else if (op == "-") {                       \
+num = num1 - num2;                        \
+} else if (op == "*") {                       \
+num = num1 * num2;                        \
+} else if (op == "/") {                       \
+if (num2 == 0) {                          \
+throw std::runtime_error("除数不能为零"); \
+}                                          \
+num = num1 / num2;                        \
+} else {                                      \
+throw std::runtime_error("不支持的操作符"); \
+}                                              \
+}
+
+std::string SyntaxZyl::compute_const_number(const EPtr &e1, EPtr &e2, const std::string &op) {
+  if (e1->num.empty() || e2->num.empty()) {
+    return "";
+  }
+  std::string result;
+  if (e1->type == "int" && e2->type == "int") {
+    int num1 = std::stoi(e1->num);
+    int num2 = std::stoi(e2->num);
+    int num;
+    PERFORM_OPERATION;
+    return std::to_string(num);
+  }
+  // 两个数都转为 float
+  float num1 = std::stof(e1->num);
+  float num2 = std::stof(e2->num);
+  float num;
+  PERFORM_OPERATION;
+  return std::to_string(num);
+}
+
+Syntax::SymPtr SyntaxZyl::reduce(int grammar_id, const std::vector<SymPtr> &symbols) {
   Grammar grammar = slr_table_.find_grammar(grammar_id);
 
   auto it = reduce_map_.find(grammar);
@@ -988,10 +1251,10 @@ Syntax::SymbolPtr SyntaxZyl::reduce(int grammar_id, const std::vector<SymbolPtr>
     return (this->*handler)(symbols);
   }
 
-  return std::make_shared<SymbolWithAttribute>(grammar.lhs(), grammar.lhs());
+  return std::make_shared<SymAttr>(grammar.lhs(), grammar.lhs());
 }
 
-std::shared_ptr<Syntax::SymbolTable> SyntaxZyl::pop_symbol_table() {
+std::shared_ptr<Syntax::Table> SyntaxZyl::pop_symbol_table() {
   if (stack_symbol_table_.empty()) return nullptr;
   auto top = stack_symbol_table_.top();
   stack_symbol_table_.pop();
@@ -1002,12 +1265,21 @@ int SyntaxZyl::size_of(const std::string &type) {
   std::string t = strtool::to_lower(type);
   if (t == "int") return 4;
   if (t == "void") return 0;
-  if (t == "array" || t == "arrptt" || t == "arrayptt") return 4;
-  if (t == "func" || t == "funptt" || t == "funcptt") return 8;
+  if (t == "float") return 8;
+  if (t == "array" || t == "arrptt") return 4;
+  if (t == "func" || t == "funptt") return 8;
   return 0;
 }
 
-std::string Syntax::get_table_name(const SymbolTable& symbol_table) {
+bool SyntaxZyl::is_array(EntryPtr &entry) {
+  return entry->type == "array" || entry->type == "arrptt";
+}
+
+bool SyntaxZyl::is_func(EntryPtr &entry) {
+  return entry->type == "func" || entry->type == "funptt";
+}
+
+std::string Syntax::get_table_name(const Table& symbol_table) {
   std::string name = symbol_table.name;
   TablePtr outer = symbol_table.outer;
   while (outer) {

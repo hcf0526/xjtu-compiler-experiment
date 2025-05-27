@@ -1,4 +1,3 @@
-LABEL system_table
   t15 = CALL main, 0;
 LABEL main
   t10 = 2;

@@ -21,7 +21,9 @@ void Code::to_three_addr_code(const std::string &filename) {
 void Code::add_three_addr_code(std::ofstream &out, const TablePtr &table) {
   std::string line;
   std::istringstream iss(merge_code(table));
-  out << std::string("LABEL ") << table->name << std::endl;
+  if (table->name != "system_table") {
+    out << std::string("LABEL ") << table->name << std::endl;
+  }
   while (std::getline(iss, line)) {
     if (line.find("LABEL") == std::string::npos) {
       out << "  " << line << std::endl;

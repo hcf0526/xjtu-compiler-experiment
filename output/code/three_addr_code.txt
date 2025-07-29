@@ -1,32 +1,28 @@
-  t15 = CALL main, 0;
-LABEL main
-  t10 = 2;
-  t11 = 3.14;
-  arr[t10] = t11;
-  t12 = 1;
-  t13 = 8.8;
-  arr[t12] = t13;
-  PAR arr;
-  t14 = CALL max, 1;
-  RETURN t14;
-LABEL max
-  t0 = 0;
-  t1 = arr[t0];
-  max_val = t1;
-  t2 = 1;
-  t3 = arr[t2];
-  IF max_val < t3 THEN l0 ELSE l1;
+  t8 = 6;
+  PAR t8;
+  t9 = CALL foo, 1;
+LABEL foo
+  PAR raw;
+  PAR y;
+  t7 = CALL bar, 2;
+LABEL raw
+  t0 = 5;
+  t1 = x + t0;
+  y = t1;
+  RETURN y;
+LABEL bar
+  t2 = 3;
+  IF x > t2 THEN l0 ELSE l1;
 LABEL l0;
-  t4 = 1;
-  t5 = arr[t4];
-  max_val = t5;
+  t3 = 3;
+  t4 = x / t3;
+  PAR soo;
+  PAR t4;
+  t5 = CALL raw, 2;
+  GOTO l2;
 LABEL l1;
-  t6 = 2;
-  t7 = arr[t6];
-  IF max_val < t7 THEN l2 ELSE l3;
+  PAR x;
+  t6 = CALL soo, 1;
+  z = t6;
 LABEL l2;
-  t8 = 2;
-  t9 = arr[t8];
-  max_val = t9;
-LABEL l3;
-  RETURN max_val;
+  PRINT z;

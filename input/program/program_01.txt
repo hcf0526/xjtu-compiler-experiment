@@ -1,24 +1,20 @@
-void foo(int y;) {
-  int z;
-  int arr[99];
-  void bar(int x; int a[]; int soo();) {
-    int var1;
-    int var2;
-    var1 = 1;
-    var2 = (var1 = 1);
-    if (x < 50) bar(x + 1, a[], soo(),) else soo(x, var1 + 1,);
-    var2 = var2 + 1
-  };
-  int raw(int x;) {
-    int xyz;
-    xyz = 0;
-    while (xyz < 10 ∧ xyz <= 20) {
-        x = x + 5;
-        xyz = xyz + 1
-    };
-    return x
-  };
-  bar(y, arr[], raw(),)
+int x;
+int a[2, 3];
+void q(int s(); int b[]; int x;){
+    int y;
+    y=s(x + 10,);
+    print y
 };
-foo(2 * 100,)
+int p(){
+    int r(int b[];){
+        int z;
+        z=b[6] + x;
+        return z
+    };
+    q(r(), x * 3,)
+};
+x = 15;
+a[1, 2] = 21;
+p()
+
 

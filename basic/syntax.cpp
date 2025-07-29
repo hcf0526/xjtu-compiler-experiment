@@ -908,9 +908,9 @@ SyntaxZyl::SymbolPtr SyntaxZyl::reduce_expr_operator(const std::vector<SymbolPtr
   std::string code = e1->code + e2->code;
   code += var + " = " + e1->place + " " + op + " " + e2->place + ";\n";
 
-  if (e1->type != e2->type) {
-    throw std::runtime_error("类型不匹配" + e1->type + syms[1]->value + e2->type);
-  }
+  // if (e1->type != e2->type) {
+  //   throw std::runtime_error("类型不匹配" + e1->type + syms[1]->value + e2->type);
+  // }
 
   std::string num = compute_const_number(e1, e2, op);
 

@@ -1,0 +1,86 @@
+{
+  "0": {
+    "add": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\+\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "add \\$$1, \\$$2, \\$$3"
+    },
+    "sub": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*-\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "sub \\$$1, \\$$2, \\$$3"
+    },
+    "mul": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\*\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "mul \\$$1, \\$$2, \\$$3"
+    },
+    "div": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*/\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "div \\$$2, \\$$3\\nmflo \\$$1"
+    }
+  },
+  "1": {
+    "li": {
+      "pattern": "t(\\d+)\\s*=\\s*(\\d+)\\s*;",
+      "replacement": "li $t$1, $2"
+    },
+    "move": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "move \\$$1, \\$$2"
+    },
+    "load_array": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\[([a-zA-Z_][a-zA-Z0-9_]*)\\]\\s*;",
+      "replacement": "sll \\$$3, \\$$3, 2\\nla $at, $2\\nadd $at, $at, \\$$3\\nlw \\$$1, 0($at)"
+    },
+    "store_array": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\[([a-zA-Z_][a-zA-Z0-9_]*)\\]\\s*=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "sll \\$$2, \\$$2, 2\\nla $at, $1\\nadd $at, $at, \\$$2\\nsw \\$$3, 0($at)"
+    }
+  },
+  "2": {
+    "if_lt": {
+      "pattern": "IF\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*<\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s+THEN\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+ELSE\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "bge \\$$1, \\$$2, $4\\nj $3"
+    },
+    "if_le": {
+      "pattern": "IF\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*<=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s+THEN\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+ELSE\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "bgt \\$$1, \\$$2, $4\\nj $3"
+    },
+    "if_eq": {
+      "pattern": "IF\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*==\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s+THEN\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+ELSE\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "bne \\$$1, \\$$2, $4\\nj $3"
+    },
+    "if_gt": {
+      "pattern": "IF\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*>\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s+THEN\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+ELSE\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "ble \\$$1, \\$$2, $4\\nj $3"
+    },
+    "if_ge": {
+      "pattern": "IF\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*>=\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s+THEN\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s+ELSE\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "blt \\$$1, \\$$2, $4\\nj $3"
+    }
+  },
+  "3": {
+    "par": {
+      "pattern": "PAR\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "addi $sp, $sp, -4\\nsw \\$$1, 0($sp)"
+    },
+    "call": {
+      "pattern": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*CALL\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*,\\s*\\d+\\s*;",
+      "replacement": "jal $2\\nlw \\$$1, 0($sp)\\naddi $sp, $sp, 4"
+    },
+    "return": {
+      "pattern": "RETURN\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "addi $sp, $sp, -4\\nsw \\$$1, 0($sp)\\njr $ra"
+    },
+    "goto": {
+      "pattern": "GOTO\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "j $1"
+    },
+    "label": {
+      "pattern": "LABEL\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "$1:"
+    },
+    "print": {
+      "pattern": "PRINT\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+      "replacement": "move $a0, \\$$1\\nli $v0, 1\\nsyscall"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+  li $t9, 15
+  move $x, $t9
+  li $t10, 1
+  li $t11, 21
+  sll $t10, $t10, 2
+  la $at, a
+  add $at, $at, $t10
+  sw $t11, 0($at)
+  jal p
+  lw $t12, 0($sp)
+  addi $sp, $sp, 4
+p:
+  li $t6, 3
+  mul $t7, $x, $t6
+  addi $sp, $sp, -4
+  sw $t7, 0($sp)
+  addi $sp, $sp, -4
+  sw $r, 0($sp)
+  jal q
+  lw $t8, 0($sp)
+  addi $sp, $sp, 4
+r:
+  lw $b, 0($sp)
+  addi $sp, $sp, 4
+  li $t3, 6
+  sll $t3, $t3, 2
+  la $at, b
+  add $at, $at, $t3
+  lw $t4, 0($at)
+  add $t5, $t4, $x
+  move $z, $t5
+  addi $sp, $sp, -4
+  sw $z, 0($sp)
+  jr $ra
+q:
+  lw $s, 0($sp)
+  addi $sp, $sp, 4
+  lw $b, 0($sp)
+  addi $sp, $sp, 4
+  lw $x, 0($sp)
+  addi $sp, $sp, 4
+  li $t0, 10
+  add $t1, $x, $t0
+  addi $sp, $sp, -4
+  sw $t1, 0($sp)
+  jal s
+  lw $t2, 0($sp)
+  addi $sp, $sp, 4
+  move $y, $t2
+  move $a0, $y
+  li $v0, 1
+  syscall

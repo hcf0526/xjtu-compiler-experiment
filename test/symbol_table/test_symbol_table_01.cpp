@@ -8,7 +8,7 @@
 #include "basic/code.hpp"
 
 int main() {
-  std::string program_file = index_format("input/program/program", 3, ".txt");
+  std::string program_file = index_format("input/program/program", 1, ".txt");
 
   // 词法分析
   Lexical lexical(LEXICAL_EXTEND);
@@ -31,7 +31,10 @@ int main() {
 
   // 代码输出
   Code code(syntax);
-  code.to_three_addr_code("output/code/three_addr_code.txt");
+  // code.to_three_addr_code("output/code/three_addr_code.txt");
+  code.parse_mips_regex(MIPS_REGEX_FILE);
+  code.to_mips("output/code/mips_code.txt");
+
   return 0;
 }
 
